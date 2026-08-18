@@ -70,6 +70,8 @@ function useAboutLinkMotion() {
       // overwrite the motion values with already-transformed coordinates.
       const previousHeadingTransform = heading.style.transform;
       const previousAboutTransform = aboutLink.style.transform;
+      const previousHeadingFontSize = heading.style.fontSize;
+      const previousAboutFontSize = aboutLink.style.fontSize;
 
       heading.style.transform = 'none';
       aboutLink.style.transform = 'none';
@@ -96,10 +98,24 @@ function useAboutLinkMotion() {
         const finalAboutWidth = (aboutLabelRect.width + commaRect.width) * linkScaleEnd;
         const finalGap = headingFontSize * nameScaleEnd * 0.25;
         const targetLeft = nameRect.right - finalNameWidth - finalGap - finalAboutWidth;
-        const nameTopOffset = nameRect.top - headingRect.top;
-        const aboutTopOffset = aboutLabelRect.top - aboutRect.top;
-        const targetTop =
-          targetRect.top + (nameTopOffset * nameScaleEnd) - (aboutTopOffset * linkScaleEnd);
+
+        // Use the actual end-state font sizes when finding the text baselines.
+        // Scaling the starting range offsets is close, but font metrics shift the
+        // rendered text by a fractional pixel at the final scroll position.
+        heading.style.fontSize = `${headingFontSize * nameScaleEnd}px`;
+        aboutLink.style.fontSize = `${aboutFontSize * linkScaleEnd}px`;
+
+        const finalNameRange = document.createRange();
+        const finalAboutLabelRange = document.createRange();
+        finalNameRange.selectNodeContents(name);
+        finalAboutLabelRange.selectNodeContents(aboutLabel);
+
+        const finalHeadingRect = heading.getBoundingClientRect();
+        const finalAboutRect = aboutLink.getBoundingClientRect();
+        const finalNameTopOffset = finalNameRange.getBoundingClientRect().top - finalHeadingRect.top;
+        const finalAboutTopOffset =
+          finalAboutLabelRange.getBoundingClientRect().top - finalAboutRect.top;
+        const targetTop = targetRect.top + finalNameTopOffset - finalAboutTopOffset;
 
         setMotion({
           dx: targetLeft - aboutRect.left,
@@ -116,6 +132,8 @@ function useAboutLinkMotion() {
       } finally {
         heading.style.transform = previousHeadingTransform;
         aboutLink.style.transform = previousAboutTransform;
+        heading.style.fontSize = previousHeadingFontSize;
+        aboutLink.style.fontSize = previousAboutFontSize;
       }
     };
 
