@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const navItems = [
   { href: '#about', label: 'About Me', className: 'nav-about' },
@@ -11,6 +11,65 @@ const aboutCopy = [
   'Using this lived experience, I focused on quantitative sociology, at the University of Amsterdam. Putting academic names to cultural experiences I had grown up learning intuitively. I developed my quantitative and mixed method skills in data analysis with programs such as STATA and SPSS. As well as my interpersonal skills by joining the Interdisciplinary Honours and Talent Programme.',
   'I am passionate about international relations and thrive in multicultural environments. I pride myself on my pragmatism, communication and leadership skills, which allow me to adapt to any working environment.',
 ];
+
+const aboutPhotos = [
+  {
+    className: 'about-photo-card-family',
+    src: '/images/about-family.jpg',
+    alt: 'A child and woman pictured at Bolling Air Force Base',
+    title: 'Bolling Airforce Base image',
+    location: '2002 Bolling Airforce Base, DC',
+    description:
+      'When my dad was still active duty and my mother was attending Georgetown.',
+  },
+  {
+    className: 'about-photo-card-father',
+    src: '/images/about-father-and-children.jpg',
+    alt: 'A father with two children at an outdoor gathering',
+    title: 'Photo with my brother and father',
+    location: '2004 Sicily, Italy - Naval Air Station Sigonella',
+    description: 'Pictured my father and my little brother Stefano',
+  },
+];
+
+function getCardOrientation(element) {
+  const transform = getComputedStyle(element).transform;
+  if (!transform || transform === 'none') {
+    return 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)';
+  }
+
+  const values = transform
+    .replace(/^matrix3d\(|^matrix\(|\)$/g, '')
+    .split(',')
+    .map(Number);
+
+  if (values.length === 16 && values.every(Number.isFinite)) {
+    values[12] = 0;
+    values[13] = 0;
+    values[14] = 0;
+    return `matrix3d(${values.join(', ')})`;
+  }
+
+  if (values.length === 6 && values.every(Number.isFinite)) {
+    const [a, b, c, d] = values;
+    return `matrix3d(${a}, ${b}, 0, 0, ${c}, ${d}, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)`;
+  }
+
+  return 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)';
+}
+
+function getPhotoFlightTransform(sourceRect, targetRect, origin, depth) {
+  const sourceCenterX = sourceRect.left + sourceRect.width / 2;
+  const sourceCenterY = sourceRect.top + sourceRect.height / 2;
+  const targetCenterX = targetRect.left + targetRect.width / 2;
+  const targetCenterY = targetRect.top + targetRect.height / 2;
+  const scaleX = origin.layoutWidth / targetRect.width;
+  const scaleY = origin.layoutHeight / targetRect.height;
+
+  return `translate3d(${sourceCenterX - targetCenterX}px, ${
+    sourceCenterY - targetCenterY
+  }px, ${depth}px) ${origin.orientation} scale3d(${scaleX}, ${scaleY}, 1)`;
+}
 
 function useAboutProgress() {
   const [progress, setProgress] = useState(0);
@@ -228,6 +287,12 @@ export function App() {
   const aboutLinkMotion = useAboutLinkMotion();
   const photoReveal = useAboutPhotoReveal(aboutProgress);
   const photoDeckRef = usePhotoDeckTilt();
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [isLightboxClosing, setIsLightboxClosing] = useState(false);
+  const [photoOrigin, setPhotoOrigin] = useState(null);
+  const lightboxPanelRef = useRef(null);
+  const lightboxVisualRef = useRef(null);
+  const lightboxAnimationRef = useRef(null);
   const aboutCopyProgress = Math.min(1, Math.max(0, (aboutProgress - 0.38) / 0.62));
   const nameFontSize = aboutLinkMotion.nameFontSize
     ? aboutLinkMotion.nameFontSize *
@@ -241,6 +306,112 @@ export function App() {
     ? aboutLinkMotion.aboutLabelWidth *
       (1 + aboutProgress * (aboutLinkMotion.scaleEnd - 1))
     : undefined;
+
+  const closePhoto = useCallback(() => {
+    if (!selectedPhoto || isLightboxClosing) return;
+
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setSelectedPhoto(null);
+      setPhotoOrigin(null);
+      return;
+    }
+
+    setIsLightboxClosing(true);
+  }, [isLightboxClosing, selectedPhoto]);
+
+  useEffect(() => {
+    if (!selectedPhoto) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    lightboxPanelRef.current?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') closePhoto();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [closePhoto, selectedPhoto]);
+
+  useLayoutEffect(() => {
+    const visual = lightboxVisualRef.current;
+    if (!selectedPhoto || !photoOrigin || !visual) return undefined;
+
+    const targetRect = visual.getBoundingClientRect();
+    const sourceTransform = getPhotoFlightTransform(
+      photoOrigin,
+      targetRect,
+      photoOrigin,
+      0,
+    );
+    const finalTransform =
+      'translate3d(0, 0, 0) rotateZ(0deg) rotateX(1deg) rotateY(-1deg) scale(1)';
+    const prefersReducedMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    const animation = visual.animate(
+      isLightboxClosing
+        ? [
+            { opacity: 1, transform: finalTransform },
+            { opacity: 1, transform: sourceTransform },
+          ]
+        : [
+            { opacity: 1, transform: sourceTransform },
+            { opacity: 1, transform: finalTransform },
+          ],
+      {
+        duration: prefersReducedMotion ? 1 : isLightboxClosing ? 420 : 720,
+        easing: isLightboxClosing
+          ? 'cubic-bezier(0.45, 0, 0.55, 1)'
+          : 'cubic-bezier(0.22, 1, 0.36, 1)',
+        fill: 'both',
+      },
+    );
+
+    lightboxAnimationRef.current = animation;
+
+    if (isLightboxClosing) {
+      animation.onfinish = () => {
+        if (lightboxAnimationRef.current !== animation) return;
+        setSelectedPhoto(null);
+        setPhotoOrigin(null);
+        setIsLightboxClosing(false);
+        lightboxAnimationRef.current = null;
+      };
+    }
+
+    return () => {
+      animation.cancel();
+      if (lightboxAnimationRef.current === animation) {
+        lightboxAnimationRef.current = null;
+      }
+    };
+  }, [isLightboxClosing, photoOrigin, selectedPhoto]);
+
+  const openPhoto = (photo, event) => {
+    const card = event.currentTarget.closest('.about-photo-card');
+    const sourceRect = card?.getBoundingClientRect();
+
+    setPhotoOrigin(
+      sourceRect
+        ? {
+            left: sourceRect.left,
+            top: sourceRect.top,
+            width: sourceRect.width,
+            height: sourceRect.height,
+            layoutWidth: card.offsetWidth,
+            layoutHeight: card.offsetHeight,
+            orientation: getCardOrientation(card),
+          }
+        : null,
+    );
+    setIsLightboxClosing(false);
+    setSelectedPhoto(photo);
+  };
 
   return (
     <main className="site-shell" id="top">
@@ -288,20 +459,23 @@ export function App() {
             ref={photoDeckRef}
             aria-hidden={!photoReveal}
           >
-            <figure className="about-photo-card about-photo-card-family">
-              <img
-                src="/images/about-family.jpg"
-                alt="A group of children in a classroom"
-                decoding="async"
-              />
-            </figure>
-            <figure className="about-photo-card about-photo-card-father">
-              <img
-                src="/images/about-father-and-children.jpg"
-                alt="A father with two children at an outdoor gathering"
-                decoding="async"
-              />
-            </figure>
+            {aboutPhotos.map((photo) => (
+              <figure
+                className={`about-photo-card ${photo.className}${
+                  selectedPhoto?.src === photo.src ? ' is-modal-source' : ''
+                }`}
+                key={photo.src}
+              >
+                <button
+                  className="about-photo-trigger"
+                  type="button"
+                  onClick={(event) => openPhoto(photo, event)}
+                  aria-label={`Enlarge ${photo.title}`}
+                >
+                  <img src={photo.src} alt={photo.alt} decoding="async" />
+                </button>
+              </figure>
+            ))}
           </div>
 
           <div className="hero-content">
@@ -329,6 +503,31 @@ export function App() {
 
           <div className="about-target" aria-hidden="true" />
         </div>
+
+        {selectedPhoto ? (
+          <div
+            className={`photo-lightbox${isLightboxClosing ? ' is-closing' : ''}`}
+            role="dialog"
+            aria-modal="true"
+            aria-label={selectedPhoto.title}
+            onClick={closePhoto}
+          >
+            <div className="photo-lightbox-backdrop" aria-hidden="true" />
+            <div className="photo-lightbox-panel" ref={lightboxPanelRef} tabIndex={-1}>
+              <div className="photo-lightbox-visual" ref={lightboxVisualRef}>
+                <img
+                  className="photo-lightbox-image"
+                  src={selectedPhoto.src}
+                  alt={selectedPhoto.alt}
+                />
+              </div>
+              <div className="photo-lightbox-caption">
+                <span>{selectedPhoto.location}</span>
+                <span>{selectedPhoto.description}</span>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <span className="about-anchor" id="about" aria-hidden="true" />
       </div>
