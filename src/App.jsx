@@ -1,9 +1,15 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const navItems = [
   { href: '#about', label: 'About Me', className: 'nav-about' },
   { href: '#job-lens', label: 'Job Lens', className: 'nav-secondary' },
   { href: '#photography', label: 'Photography', className: 'nav-secondary' },
+];
+
+const aboutCopy = [
+  'As thankful son of a career US Navy Veteran and Migration Policy Analyst, I have lived more of my life outside of the US, than inside. Which I know, has given me a unique perspective on my place and more importantly the United States’ place in geopolitics. Growing up in Italy, Thailand, the Philippines, and the Netherlands I have attended international schools with just about every possible, nationality, ethnicity, religious background, and socioeconomic status.',
+  'Using this lived experience, I focused on quantitative sociology, at the University of Amsterdam. Putting academic names to cultural experiences I had grown up learning intuitively. I developed my quantitative and mixed method skills in data analysis with programs such as STATA and SPSS. As well as my interpersonal skills by joining the Interdisciplinary Honours and Talent Programme.',
+  'I am passionate about international relations and thrive in multicultural environments. I pride myself on my pragmatism, communication and leadership skills, which allow me to adapt to any working environment.',
 ];
 
 function useAboutProgress() {
@@ -150,9 +156,79 @@ function useAboutLinkMotion() {
   return motion;
 }
 
+function useAboutPhotoReveal(aboutProgress) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (aboutProgress < 0.98) {
+      setIsVisible(false);
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setIsVisible(true), 1000);
+    return () => window.clearTimeout(timeout);
+  }, [aboutProgress]);
+
+  return isVisible;
+}
+
+function usePhotoDeckTilt() {
+  const deckRef = useRef(null);
+
+  useEffect(() => {
+    const deck = deckRef.current;
+    if (!deck) return undefined;
+
+    let frame = 0;
+    let tiltX = 0;
+    let tiltY = 0;
+
+    const applyTilt = () => {
+      frame = 0;
+      deck.style.setProperty('--pointer-tilt-x', `${tiltX}deg`);
+      deck.style.setProperty('--pointer-tilt-y', `${tiltY}deg`);
+    };
+
+    const scheduleTilt = () => {
+      if (!frame) frame = window.requestAnimationFrame(applyTilt);
+    };
+
+    const handlePointerMove = (event) => {
+      const rect = deck.getBoundingClientRect();
+      const x = (event.clientX - (rect.left + rect.width / 2)) / (rect.width / 2 || 1);
+      const y = (event.clientY - (rect.top + rect.height / 2)) / (rect.height / 2 || 1);
+      tiltX = Math.max(-11, Math.min(11, x * 11));
+      tiltY = Math.max(-9, Math.min(9, y * -9));
+      scheduleTilt();
+    };
+
+    const resetTilt = () => {
+      tiltX = 0;
+      tiltY = 0;
+      scheduleTilt();
+    };
+
+    // Track the viewport rather than the deck itself so the hidden deck can
+    // inherit the current pointer-facing tilt before it fades in.
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerleave', resetTilt);
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerleave', resetTilt);
+    };
+  }, []);
+
+  return deckRef;
+}
+
 export function App() {
   const aboutProgress = useAboutProgress();
   const aboutLinkMotion = useAboutLinkMotion();
+  const photoReveal = useAboutPhotoReveal(aboutProgress);
+  const photoDeckRef = usePhotoDeckTilt();
+  const aboutCopyProgress = Math.min(1, Math.max(0, (aboutProgress - 0.38) / 0.62));
   const nameFontSize = aboutLinkMotion.nameFontSize
     ? aboutLinkMotion.nameFontSize *
       (1 - aboutProgress * (1 - aboutLinkMotion.nameScaleEnd))
@@ -186,6 +262,7 @@ export function App() {
             ? `${aboutLinkMotion.aboutLinkHeight}px`
             : undefined,
           '--about-link-label-width': aboutLabelWidth ? `${aboutLabelWidth}px` : undefined,
+          '--about-copy-progress': aboutCopyProgress,
         }}
       >
         <div className="story-stage">
@@ -199,6 +276,33 @@ export function App() {
             src="/images/about-portrait.jpg"
             alt="Edgar Agunias at a graduation ceremony"
           />
+
+          <div className="about-copy" aria-label="About Me">
+            {aboutCopy.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
+
+          <div
+            className={`about-photo-deck${photoReveal ? ' is-visible' : ''}`}
+            ref={photoDeckRef}
+            aria-hidden={!photoReveal}
+          >
+            <figure className="about-photo-card about-photo-card-family">
+              <img
+                src="/images/about-family.jpg"
+                alt="A group of children in a classroom"
+                decoding="async"
+              />
+            </figure>
+            <figure className="about-photo-card about-photo-card-father">
+              <img
+                src="/images/about-father-and-children.jpg"
+                alt="A father with two children at an outdoor gathering"
+                decoding="async"
+              />
+            </figure>
+          </div>
 
           <div className="hero-content">
             <h1>
