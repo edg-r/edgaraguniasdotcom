@@ -1,0 +1,228 @@
+:root {
+  color: #fff;
+  background: #000;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: #000;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+a:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 5px;
+}
+
+.about-story {
+  position: relative;
+  height: 200svh;
+  background: #000;
+}
+
+.story-stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  background: #000;
+}
+
+.story-image,
+.story-wash {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.story-image {
+  display: block;
+  object-fit: cover;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.story-image-hero {
+  z-index: 0;
+  object-position: 50% 52%;
+  transform: translate3d(0, calc(var(--about-progress) * -100%), 0);
+}
+
+.story-image-about {
+  z-index: 1;
+  object-position: 50% 50%;
+  transform: translate3d(0, calc((1 - var(--about-progress)) * 100%), 0);
+}
+
+.story-wash {
+  z-index: 2;
+  background: rgba(4, 10, 16, 0.3);
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: clamp(1.45rem, 3.2vw, 3rem);
+  width: min(100%, 50rem);
+  min-height: 100svh;
+  margin-left: auto;
+  padding: clamp(8rem, 18vh, 13rem) clamp(1.5rem, 4vw, 4rem) clamp(1.5rem, 4vw, 4rem) 0;
+  opacity: calc(1 - var(--about-progress));
+  transform: translate3d(0, calc(var(--about-progress) * -2rem), 0) scale(calc(1 - (var(--about-progress) * 0.08)));
+  transform-origin: right top;
+}
+
+h1 {
+  width: 100%;
+  max-width: 9em;
+  margin: 0;
+  font-size: clamp(2.8rem, 6.2vw, 6.5rem);
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+  text-align: right;
+  white-space: nowrap;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: clamp(1rem, 3vw, 2.75rem);
+  width: 100%;
+}
+
+nav a {
+  font-size: clamp(1.05rem, 1.75vw, 1.65rem);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  text-decoration: none;
+  transition: opacity 180ms ease;
+}
+
+nav a:hover {
+  opacity: 0.68;
+}
+
+.nav-about {
+  transform: translateX(calc(var(--about-progress) * 1rem));
+}
+
+.nav-secondary {
+  opacity: calc(1 - var(--about-progress));
+  transform: translateX(calc(var(--about-progress) * 1rem));
+}
+
+.about-lockup {
+  position: absolute;
+  z-index: 4;
+  top: clamp(2rem, 5vw, 5rem);
+  right: clamp(1.5rem, 4vw, 4rem);
+  display: flex;
+  justify-content: flex-end;
+  width: min(100% - 3rem, 60rem);
+  color: #fff;
+  opacity: var(--about-progress);
+  transform: translate3d(0, calc((1 - var(--about-progress)) * -1rem), 0) scale(calc(0.92 + (var(--about-progress) * 0.08)));
+  transform-origin: right top;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.about-lockup h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 3.25rem);
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+  text-align: right;
+}
+
+.about-anchor {
+  position: absolute;
+  top: 100svh;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  scroll-margin-top: 0;
+}
+
+@media (max-width: 600px) {
+  .story-image-hero {
+    object-position: 44% 52%;
+  }
+
+  .story-image-about {
+    object-position: 60% 48%;
+  }
+
+  .hero-content {
+    justify-content: center;
+    gap: 1.4rem;
+    width: 100%;
+    margin-left: 0;
+    padding: 1.5rem;
+  }
+
+  h1 {
+    font-size: clamp(2.7rem, 12vw, 4.5rem);
+    white-space: normal;
+  }
+
+  nav {
+    gap: 0.8rem 1.25rem;
+  }
+
+  nav a {
+    font-size: 1.05rem;
+  }
+
+  .about-lockup {
+    top: 1.5rem;
+    right: 1.5rem;
+    width: calc(100% - 3rem);
+    white-space: normal;
+  }
+
+  .about-lockup h2 {
+    font-size: clamp(1.35rem, 6.4vw, 2rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  nav a {
+    transition: none;
+  }
+}
