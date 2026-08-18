@@ -13,14 +13,14 @@ The opening experience is intentionally minimal: a full-bleed photograph, a smal
 - The existing `About Me` navigation link stays solid while sliding beside the clickable `Edgar Agunias` in the upper-right black space; it grows to the same size and its comma fades in, while the other navigation items fade away.
 - Responsive layout with reduced-motion support and keyboard-visible focus states.
 
-The Job Lens and Photography destinations are intentionally scaffolded for the next page-by-page passes.
+The Job Lens destination is wired to the separate private API; Photography remains intentionally scaffolded for a later page-by-page pass.
 
 ## Tech stack
 
 - React 19
 - Vite 6
 - Plain CSS for layout, typography, motion, and responsive behavior
-- A small Sites-compatible worker for static hosting and app-route fallback
+- GitHub Pages deployment for the public frontend
 
 ## Run locally
 
@@ -38,14 +38,13 @@ npm run preview
 
 ## Validate the project
 
-The repository includes the checks used for the Sites handoff:
+The repository includes the checks used by the GitHub Pages build:
 
 ```bash
 npm run build
-npm run test:sites
 ```
 
-The build produces the client bundle, the worker bundle, and the hosting manifest under `dist/`.
+The GitHub Pages workflow publishes `dist/client`.
 
 ## Project structure
 
@@ -55,38 +54,33 @@ src/
   styles.css       Typography, layout, responsive rules, and transitions
   main.jsx         React entry point
 public/images/     Optimized user-supplied photography and visual references
-worker/            Static hosting worker
-scripts/           Sites build preparation
-tests/             Worker and packaging checks
+.github/workflows/ GitHub Pages deployment workflow
+docs/              Product and implementation notes
 ```
 
 ## Job Lens configuration
 
-The future Job Lens page can be connected to an analysis endpoint through `VITE_AI_ENDPOINT`. The optional endpoint should accept:
+The Career composer connects to the separate private `edgaragunias-api`
+project through `VITE_API_BASE_URL`. The frontend sends only the public API
+origin. OpenRouter keys, PostgreSQL credentials, recruiter records, and the
+approved evidence catalog remain outside this repository.
 
-```json
-{ "description": "..." }
-```
+The API accepts pasted descriptions and PDF/DOCX/TXT/Markdown/RTF uploads. It
+returns an evidence-grounded assessment, optional targeted follow-up questions,
+project citations, and a bounded project Q&A surface. Use the API project's
+`AI_MODE=simulated` default for local UI work, then configure OpenRouter only on
+the private server with `openai/gpt-5.6-sol` as the judge and
+`openai/gpt-5.6-luna` as the evidence/research layer.
 
-and return:
-
-```json
-{
-  "role": "...",
-  "detail": "...",
-  "signals": ["..."],
-  "note": "..."
-}
-```
-
-Copy `.env.example` to `.env` when wiring that endpoint locally. No endpoint is required for the current landing page.
+Copy `.env.example` to `.env` when wiring the public API origin locally. The
+public frontend must never receive an OpenRouter key.
 
 ## Roadmap
 
-1. Build the About Me page around the graduation portrait.
-2. Add the Job Lens paste-and-analyze flow.
-3. Add the Photography showcase and gallery behavior.
-4. Connect the finished site to the `edgaragunias.com` domain.
+1. Connect the Job Lens API to the public site and validate the simulated flow.
+2. Populate and manually approve the private evidence catalog.
+3. Configure live OpenRouter inference and bounded company research on the API.
+4. Deploy the API through a secure tunnel and publish the validated frontend through GitHub Pages when approved.
 
 ## Image rights
 

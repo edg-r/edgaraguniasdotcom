@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createAssessment, sendSessionMessage, submitSurvey } from './jobLens.js';
 
 const navItems = [
   { href: '#about', label: 'About Me', className: 'nav-about' },
@@ -31,6 +32,24 @@ const aboutPhotos = [
     description: 'Pictured my father and my little brother Stefano',
   },
 ];
+
+const fitLabels = {
+  strong_fit: 'Strong fit',
+  partial_fit: 'Partial fit',
+  not_a_fit: 'Not a fit',
+  uncertain: 'Needs more evidence',
+};
+
+const fitDescriptions = {
+  strong_fit: 'The available evidence supports the core requirements of this role.',
+  partial_fit: 'The evidence connects to important parts of the role, with gaps for the recruiter to review.',
+  not_a_fit: 'The available evidence does not establish a strong match for the role as described.',
+  uncertain: 'The current evidence is not enough to make a confident match judgment yet.',
+};
+
+function displayFitLevel(level) {
+  return fitLabels[level] || fitLabels.uncertain;
+}
 
 function getCardOrientation(element) {
   const transform = getComputedStyle(element).transform;
@@ -294,6 +313,16 @@ export function App() {
   const [jobFile, setJobFile] = useState(null);
   const [jobComposerMessage, setJobComposerMessage] = useState('');
   const [isJobDropActive, setIsJobDropActive] = useState(false);
+  const [jobConsent, setJobConsent] = useState(false);
+  const [jobSession, setJobSession] = useState(null);
+  const [jobMessages, setJobMessages] = useState([]);
+  const [jobPendingQuestions, setJobPendingQuestions] = useState([]);
+  const [jobMessage, setJobMessage] = useState('');
+  const [jobMessageKind, setJobMessageKind] = useState('chat');
+  const [jobLoading, setJobLoading] = useState(false);
+  const [jobError, setJobError] = useState('');
+  const [jobSurveyRating, setJobSurveyRating] = useState(null);
+  const jobPanelRef = useRef(null);
   const lightboxPanelRef = useRef(null);
   const lightboxVisualRef = useRef(null);
   const lightboxAnimationRef = useRef(null);
@@ -457,10 +486,87 @@ export function App() {
     void handleJobFile(file);
   };
 
-  const handleJobSubmit = (event) => {
+  const focusJobPanel = () => {
+    window.requestAnimationFrame(() => jobPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
+  const handleJobSubmit = async (event) => {
     event.preventDefault();
-    if (!jobDescription.trim() && !jobFile) return;
-    setJobComposerMessage('Description ready to compare');
+    if (!jobDescription.trim() && !jobFile) {
+      setJobComposerMessage('Paste a job description or upload a file first');
+      return;
+    }
+    if (!jobConsent) {
+      setJobComposerMessage('Please acknowledge the retention notice before continuing');
+      return;
+    }
+
+    setJobLoading(true);
+    setJobError('');
+    setJobComposerMessage('Reading the role and comparing approved evidence…');
+    try {
+      const data = await createAssessment({ description: jobDescription, file: jobFile });
+      setJobSession(data);
+      setJobMessages(data.messages || []);
+      setJobPendingQuestions(data.session?.assessment?.follow_up_questions || []);
+      setJobMessageKind(data.session?.assessment?.follow_up_questions?.length ? 'clarification' : 'chat');
+      setJobMessage('');
+      setJobComposerMessage('Assessment ready below');
+      focusJobPanel();
+    } catch (error) {
+      setJobError(error.message || 'The Job Lens service could not complete that request.');
+      setJobComposerMessage('The assessment could not be completed');
+    } finally {
+      setJobLoading(false);
+    }
+  };
+
+  const handleJobMessage = async (event, kind = jobMessageKind) => {
+    event?.preventDefault?.();
+    const message = jobMessage.trim();
+    const sessionId = jobSession?.session?.session_id;
+    if (!message || !sessionId || jobLoading) return;
+
+    setJobLoading(true);
+    setJobError('');
+    setJobMessages((current) => [
+      ...current,
+      { role: 'user', kind, content: message, created_at: new Date().toISOString() },
+    ]);
+    setJobMessage('');
+    try {
+      const data = await sendSessionMessage(sessionId, message, kind);
+      setJobSession((current) => (current ? { ...current, session: data.session } : current));
+      setJobPendingQuestions(data.follow_up_questions || []);
+      setJobMessageKind(data.follow_up_questions?.length ? 'clarification' : 'chat');
+      setJobMessages((current) => [
+        ...current,
+        {
+          role: 'assistant',
+          kind: data.assessment ? 'assessment' : 'chat',
+          content: data.reply,
+          citations: data.citations || [],
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      setJobMessageKind(kind === 'clarification' && data.follow_up_questions?.length ? 'clarification' : 'chat');
+      if (data.budget_exhausted) setJobComposerMessage('This session has reached its inference budget');
+    } catch (error) {
+      setJobError(error.message || 'The Job Lens service could not answer that.');
+    } finally {
+      setJobLoading(false);
+    }
+  };
+
+  const handleJobSurvey = async (rating) => {
+    const sessionId = jobSession?.session?.session_id;
+    if (!sessionId || jobSurveyRating) return;
+    try {
+      await submitSurvey(sessionId, rating);
+      setJobSurveyRating(rating);
+    } catch (error) {
+      setJobError(error.message || 'The rating could not be saved.');
+    }
   };
 
   const handleJobPillClick = () => {
@@ -547,9 +653,9 @@ export function App() {
                   ref={jobFileInputRef}
                   className="job-file-input"
                   type="file"
-                  accept=".pdf,.txt,.md,.rtf,application/pdf,text/plain,text/markdown,application/rtf"
+                  accept=".pdf,.doc,.docx,.txt,.md,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/rtf"
                   onChange={handleJobFileChange}
-                  aria-label="Upload a PDF or text file"
+                  aria-label="Upload a PDF, Word, or text file"
                 />
               </div>
 
@@ -561,24 +667,35 @@ export function App() {
                     setJobDescription(event.target.value);
                     setJobComposerMessage('');
                   }}
+                  onKeyDown={(event) => {
+                    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                      event.preventDefault();
+                      void handleJobSubmit(event);
+                    }
+                  }}
                   placeholder="Paste job description to see if we're a match!"
                   rows={1}
                 />
               </label>
 
               <div className="job-composer-footer">
-                <span className="job-composer-status sr-only" aria-live="polite">
+                <span className="job-composer-status" aria-live="polite">
                   {jobComposerMessage || 'Paste text or drop a PDF / text file'}
                 </span>
+                <label className="job-consent">
+                  <input
+                    type="checkbox"
+                    checked={jobConsent}
+                    onChange={(event) => setJobConsent(event.target.checked)}
+                  />
+                  <span>Retained for Edgar’s review</span>
+                </label>
                 <button
-                  className="job-submit-button"
+                  className="job-submit-text"
                   type="submit"
-                  aria-label="Submit job description"
-                  disabled={!jobDescription.trim() && !jobFile}
+                  disabled={jobLoading || (!jobDescription.trim() && !jobFile)}
                 >
-                  <span className="job-submit-arrow" aria-hidden="true">
-                    ↑
-                  </span>
+                  {jobLoading ? 'Reading…' : 'Analyze'}
                 </button>
               </div>
             </div>
@@ -670,6 +787,187 @@ export function App() {
 
         <span className="about-anchor" id="about" aria-hidden="true" />
       </div>
+
+      <section className={`job-lens-panel${jobSession ? ' has-session' : ''}`} id="job-lens" ref={jobPanelRef}>
+        <div className="job-lens-inner">
+          <div className="job-lens-intro">
+            <p className="section-eyebrow">CAREER / JOB LENS</p>
+            <h2>See the work behind the résumé.</h2>
+            <p>
+              A bounded, evidence-grounded comparison for recruiters. Submitted material stays with this assessment and is retained for Edgar’s review.
+            </p>
+          </div>
+
+          {jobSession?.session?.assessment ? (
+            <div className="job-lens-results">
+              <div className="job-lens-result-head">
+                <div>
+                  <p className="result-kicker">ASSESSMENT {jobSession.session.assessment.ordinal}</p>
+                  <h3>{displayFitLevel(jobSession.session.assessment.fit_level)}</h3>
+                </div>
+                <span className={`fit-badge fit-${jobSession.session.assessment.fit_level}`}>
+                  {jobSession.session.assessment.final ? 'Final' : 'Reviewable'}
+                </span>
+              </div>
+
+              <p className="job-lens-headline">{jobSession.session.assessment.headline}</p>
+              <p className="job-lens-summary">
+                {jobSession.session.assessment.summary || fitDescriptions[jobSession.session.assessment.fit_level]}
+              </p>
+
+              <div className="job-lens-columns">
+                <div>
+                  <p className="result-kicker">CONNECTED TO THE ROLE</p>
+                  <div className="requirement-list">
+                    {jobSession.session.assessment.requirements?.length ? (
+                      jobSession.session.assessment.requirements.map((item, index) => (
+                        <article className="requirement-card" key={`${item.requirement}-${index}`}>
+                          <div className="requirement-card-head">
+                            <strong>{item.requirement}</strong>
+                            <span className={`requirement-status status-${item.status}`}>
+                              {item.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <p>{item.explanation}</p>
+                          {item.evidence?.length ? (
+                            <div className="evidence-links">
+                              {item.evidence.map((evidence) => (
+                                <a href={evidence.project_url || evidence.artifact_url || '#'} target="_blank" rel="noreferrer" key={`${evidence.evidence_id}-${evidence.title}`}>
+                                  {evidence.title} ↗
+                                </a>
+                              ))}
+                            </div>
+                          ) : null}
+                        </article>
+                      ))
+                    ) : (
+                      <p className="muted-result">No specific connections were returned yet.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="result-kicker">GAPS / UNCERTAINTY</p>
+                  {jobSession.session.assessment.gaps?.length ? (
+                    <ul className="gap-list">
+                      {jobSession.session.assessment.gaps.map((gap) => <li key={gap}>{gap}</li>)}
+                    </ul>
+                  ) : (
+                    <p className="muted-result">No unresolved gaps were returned.</p>
+                  )}
+                  <p className="result-note">{fitDescriptions[jobSession.session.assessment.fit_level]}</p>
+                </div>
+              </div>
+
+              {jobPendingQuestions.length ? (
+                <div className="follow-up-box">
+                  <div>
+                    <p className="result-kicker">OPTIONAL FOLLOW-UP</p>
+                    <p>These questions only clarify a gap or connect the role to an approved project. You can answer them together or skip them.</p>
+                  </div>
+                  <ol>
+                    {jobPendingQuestions.map((question) => <li key={question}>{question}</li>)}
+                  </ol>
+                  <button type="button" className="text-action" onClick={() => setJobMessageKind('clarification')}>
+                    Answer follow-ups
+                  </button>
+                  <button type="button" className="text-action" onClick={() => setJobMessageKind('chat')}>
+                    Ask about a project
+                  </button>
+                </div>
+              ) : null}
+
+              <div className="job-lens-chat">
+                <div className="chat-heading">
+                  <div>
+                    <p className="result-kicker">ASK ABOUT THE WORK</p>
+                    <p>Ask about a project or evidence item. Luna can explain approved work and link you to the source.</p>
+                  </div>
+                  <span className="budget-readout">${jobSession.session.budget_spent_usd.toFixed(2)} / $5 session budget</span>
+                </div>
+                <div className="chat-transcript" aria-live="polite">
+                  {jobMessages.length ? jobMessages.map((message, index) => (
+                    <div className={`chat-message chat-${message.role}`} key={`${message.created_at}-${index}`}>
+                      <span>{message.role === 'user' ? 'Recruiter' : 'Job Lens'}</span>
+                      <p>{message.content}</p>
+                      {message.citations?.length ? (
+                        <div className="evidence-links">
+                          {message.citations.map((citation) => (
+                            <a href={citation.project_url || citation.artifact_url || '#'} target="_blank" rel="noreferrer" key={`${citation.evidence_id}-${citation.title}`}>
+                              {citation.title} ↗
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  )) : (
+                    <p className="muted-result">The evidence conversation will appear here.</p>
+                  )}
+                </div>
+                <form className="chat-input-form" onSubmit={(event) => handleJobMessage(event, jobMessageKind)}>
+                  <textarea
+                    value={jobMessage}
+                    onChange={(event) => setJobMessage(event.target.value)}
+                    placeholder={jobPendingQuestions.length ? 'Answer the follow-ups or ask about an approved project…' : 'Ask about an approved project…'}
+                    rows={3}
+                    aria-label="Ask Job Lens about Edgar's work"
+                  />
+                  <div className="chat-input-footer">
+                    <span>{jobMessageKind === 'clarification' ? 'Answering targeted follow-ups' : 'Evidence-grounded project Q&A'}</span>
+                    <button type="submit" disabled={jobLoading || !jobMessage.trim()}>
+                      {jobLoading ? 'Working…' : 'Send'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {jobError ? <p className="job-lens-error" role="alert">{jobError}</p> : null}
+
+              {jobSession.session.assessment.final ? (
+                <div className="contact-box">
+                  <p className="result-kicker">NEXT STEP</p>
+                  <p>The final assessment is complete. For more context, contact Edgar directly.</p>
+                  <a
+                    className="contact-link"
+                    href={`mailto:edgar.agunias@gmail.com?subject=${encodeURIComponent(`Job Lens assessment – ${jobSession.session.session_id}`)}&body=${encodeURIComponent('Hello Edgar,\n\nI reviewed your Job Lens assessment for [role/company]. I would like to follow up about…\n')}`}
+                  >
+                    Draft an email to Edgar ↗
+                  </a>
+                </div>
+              ) : null}
+
+              <div className="job-lens-footer">
+                <details>
+                  <summary>Privacy and deletion</summary>
+                  <p>{jobSession.privacy_notice}</p>
+                  <p>Your deletion request ID: <code>{jobSession.session.deletion_request_id}</code></p>
+                </details>
+                <div className="survey-block">
+                  <span>How was this experience?</span>
+                  <div className="survey-stars" aria-label="Rate this experience from one to five stars">
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <button
+                        type="button"
+                        key={rating}
+                        className={jobSurveyRating && rating <= jobSurveyRating ? 'is-rated' : ''}
+                        onClick={() => handleJobSurvey(rating)}
+                        aria-label={`${rating} out of 5 stars`}
+                        disabled={Boolean(jobSurveyRating)}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="job-lens-empty">
+              <p>Paste a role above, accept the retention notice, and select Analyze to begin.</p>
+            </div>
+          )}
+        </div>
+      </section>
     </main>
   );
 }
