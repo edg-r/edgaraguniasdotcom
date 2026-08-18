@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 
 const navItems = [
   { href: '#about', label: 'About Me', className: 'nav-about' },
-  { href: '#job-lens', label: 'Job Lens', className: 'nav-secondary' },
+  { href: '#job-lens', label: 'Career', className: 'nav-secondary' },
   { href: '#photography', label: 'Photography', className: 'nav-secondary' },
 ];
 
@@ -290,10 +290,19 @@ export function App() {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [isLightboxClosing, setIsLightboxClosing] = useState(false);
   const [photoOrigin, setPhotoOrigin] = useState(null);
+  const [jobDescription, setJobDescription] = useState('');
+  const [jobFile, setJobFile] = useState(null);
+  const [jobComposerMessage, setJobComposerMessage] = useState('');
+  const [isJobDropActive, setIsJobDropActive] = useState(false);
   const lightboxPanelRef = useRef(null);
   const lightboxVisualRef = useRef(null);
   const lightboxAnimationRef = useRef(null);
+  const jobFileInputRef = useRef(null);
   const aboutCopyProgress = Math.min(1, Math.max(0, (aboutProgress - 0.38) / 0.62));
+  const jobComposerProgress = Math.min(1, Math.max(0, aboutProgress));
+  const jobComposerScale = 1 - jobComposerProgress * 0.72;
+  const jobComposerBlur = jobComposerProgress * 3;
+  const jobComposerPillScale = 0.86 + jobComposerProgress * 0.14;
   const nameFontSize = aboutLinkMotion.nameFontSize
     ? aboutLinkMotion.nameFontSize *
       (1 - aboutProgress * (1 - aboutLinkMotion.nameScaleEnd))
@@ -413,6 +422,51 @@ export function App() {
     setSelectedPhoto(photo);
   };
 
+  const handleJobFile = useCallback(async (file) => {
+    if (!file) return;
+
+    setJobFile(file);
+    setJobComposerMessage('');
+
+    const isTextFile =
+      file.type.startsWith('text/') || /\.(txt|md|rtf)$/i.test(file.name);
+
+    if (isTextFile) {
+      try {
+        setJobDescription(await file.text());
+        setJobComposerMessage(`Loaded ${file.name}`);
+      } catch {
+        setJobComposerMessage('This text file could not be read.');
+      }
+      return;
+    }
+
+    setJobComposerMessage(`${file.name} attached`);
+  }, []);
+
+  const handleJobFileChange = (event) => {
+    const [file] = event.target.files ?? [];
+    void handleJobFile(file);
+    event.target.value = '';
+  };
+
+  const handleJobDrop = (event) => {
+    event.preventDefault();
+    setIsJobDropActive(false);
+    const [file] = event.dataTransfer.files ?? [];
+    void handleJobFile(file);
+  };
+
+  const handleJobSubmit = (event) => {
+    event.preventDefault();
+    if (!jobDescription.trim() && !jobFile) return;
+    setJobComposerMessage('Description ready to compare');
+  };
+
+  const handleJobPillClick = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <main className="site-shell" id="top">
       <div
@@ -453,6 +507,91 @@ export function App() {
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
+
+          <form
+            className={`job-composer${jobComposerProgress > 0.72 ? ' is-minimized' : ''}${
+              isJobDropActive ? ' is-dragging' : ''
+            }`}
+            style={{
+              '--job-composer-progress': jobComposerProgress,
+              '--job-composer-scale': jobComposerScale,
+              '--job-composer-blur': `${jobComposerBlur}px`,
+              '--job-composer-pill-scale': jobComposerPillScale,
+            }}
+            onSubmit={handleJobSubmit}
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setIsJobDropActive(true);
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            onDragLeave={(event) => {
+              if (event.currentTarget === event.target) setIsJobDropActive(false);
+            }}
+            onDrop={handleJobDrop}
+            aria-label="Career match"
+          >
+            <div
+              className="job-composer-surface"
+              aria-hidden={jobComposerProgress > 0.82}
+            >
+              <div className="job-composer-header">
+                <span className="job-composer-eyebrow">CAREER / MATCH</span>
+                <button
+                  className="job-upload-button"
+                  type="button"
+                  onClick={() => jobFileInputRef.current?.click()}
+                >
+                  Upload file
+                </button>
+                <input
+                  ref={jobFileInputRef}
+                  className="job-file-input"
+                  type="file"
+                  accept=".pdf,.txt,.md,.rtf,application/pdf,text/plain,text/markdown,application/rtf"
+                  onChange={handleJobFileChange}
+                  aria-label="Upload a PDF or text file"
+                />
+              </div>
+
+              <label className="job-composer-field">
+                <span className="sr-only">Job description</span>
+                <textarea
+                  value={jobDescription}
+                  onChange={(event) => {
+                    setJobDescription(event.target.value);
+                    setJobComposerMessage('');
+                  }}
+                  placeholder="Paste job description to see if we're a match!"
+                  rows={1}
+                />
+              </label>
+
+              <div className="job-composer-footer">
+                <span className="job-composer-status sr-only" aria-live="polite">
+                  {jobComposerMessage || 'Paste text or drop a PDF / text file'}
+                </span>
+                <button
+                  className="job-submit-button"
+                  type="submit"
+                  aria-label="Submit job description"
+                  disabled={!jobDescription.trim() && !jobFile}
+                >
+                  <span className="job-submit-arrow" aria-hidden="true">
+                    ↑
+                  </span>
+                </button>
+              </div>
+            </div>
+            <button
+              className="job-composer-pill"
+              type="button"
+              onClick={handleJobPillClick}
+              aria-label="Return to Job Match"
+              aria-hidden={jobComposerProgress < 0.72}
+            >
+              <span>Job Match</span>
+            </button>
+          </form>
 
           <div
             className={`about-photo-deck${photoReveal ? ' is-visible' : ''}`}
