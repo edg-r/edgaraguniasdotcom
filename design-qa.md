@@ -20,7 +20,7 @@
 - The full name and navigation sit together higher in the center-right of the desktop composition, above the globe cluster, and are both justified to the right.
 - White type has clear contrast against the image after the placement adjustment.
 - The name remains on one line at desktop widths; the mobile layout keeps the type readable without horizontal overflow.
-- The hero image is pushed upward by the graduation photograph entering from below as scroll progress increases; Job Lens and Photography fade away, and the text treatment scales into `About Me, Edgar Agunias` in the upper-right black space.
+- The unaltered hero image is pushed upward by the unaltered graduation photograph entering from below as scroll progress increases; the existing `About Me` navigation link stays solid while sliding beside clickable `Edgar Agunias`, grows to the same size, and fades in its comma, while the other navigation items fade away.
 - The navigation is laid out as a scaffold for the next page-by-page passes; the destination pages are not built yet.
 
 **Verdict: PASS for the simplified hero direction.**

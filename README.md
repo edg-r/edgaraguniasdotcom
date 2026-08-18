@@ -10,7 +10,7 @@ The opening experience is intentionally minimal: a full-bleed photograph, a smal
 - Large white Helvetica-style type for `Edgar Agunias`.
 - Right-justified navigation for `About Me`, `Job Lens`, and `Photography`.
 - Scroll-linked vertical push into the About Me view: the globe photograph exits upward while the graduation photograph enters from below.
-- The navigation fades as `About Me, Edgar Agunias` scales into the upper-right black space.
+- The existing `About Me` navigation link stays solid while sliding beside the clickable `Edgar Agunias` in the upper-right black space; it grows to the same size and its comma fades in, while the other navigation items fade away.
 - Responsive layout with reduced-motion support and keyboard-visible focus states.
 
 The Job Lens and Photography destinations are intentionally scaffolded for the next page-by-page passes.
