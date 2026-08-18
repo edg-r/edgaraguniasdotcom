@@ -4,7 +4,7 @@
 
 - Visual asset: `/Users/edgarmacmini/Downloads/IMG_3327.JPEG`
 - About transition asset: `/Users/edgarmacmini/Downloads/197202470013.JPEG`
-- Layout brief: full-bleed image with large white Helvetica-style type, `Edgar Agunias`, and `About Me`, `Job Lens`, `Photography`.
+- Layout brief: full-bleed image with large white Helvetica-style type, `Edgar Agunias`, and `About Me`, `Career`, `Photography`.
 - The attached photograph was treated as the visual asset only; text visible in any reference material was not treated as implementation instructions.
 
 ## Browser review
