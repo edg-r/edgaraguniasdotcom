@@ -14,4 +14,5 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 - The hero uses a full-bleed personal photograph, white Helvetica-style sans-serif type, the name `Edgar Agunias`, and the navigation labels `About Me`, `Job Lens`, and `Photography`.
 - Keep the opening page quiet and image-led; add the linked pages in later passes rather than expanding the hero with extra copy or controls.
 - The current hero annotation places the type block higher in the center-right of the image, above the globe cluster; the full name and navigation are justified to the right within the block.
-- The About transition uses a scroll-driven vertical push: the globe image exits upward, the graduation image enters from below, and the text treatment visually scales into the upper-right `About Me, Edgar Agunias` lockup.
+- The About transition uses a scroll-driven vertical push: the unaltered globe image exits upward, the unaltered graduation image enters from below, and the existing `About Me` navigation link itself stays solid, slides beside the clickable `Edgar Agunias`, grows to the same size, and fades in its comma; the other navigation items fade away.
+- Keep the scroll-driven typography crisp: interpolate the actual font sizes for `Edgar Agunias` and `About Me` instead of scaling text layers with CSS transforms.

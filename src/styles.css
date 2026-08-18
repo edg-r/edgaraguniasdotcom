@@ -38,6 +38,11 @@ a:focus-visible {
   position: relative;
   height: 200svh;
   background: #000;
+  --page-inset: clamp(1.5rem, 4vw, 4rem);
+  --hero-top: clamp(8rem, 18vh, 13rem);
+  --about-top: clamp(2rem, 5vw, 5rem);
+  --hero-name-size: clamp(2.8rem, 6.2vw, 6.5rem);
+  --name-scale-end: 0.48;
 }
 
 .story-stage {
@@ -49,8 +54,7 @@ a:focus-visible {
   background: #000;
 }
 
-.story-image,
-.story-wash {
+.story-image {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -76,12 +80,6 @@ a:focus-visible {
   transform: translate3d(0, calc((1 - var(--about-progress)) * 100%), 0);
 }
 
-.story-wash {
-  z-index: 2;
-  background: rgba(4, 10, 16, 0.3);
-  pointer-events: none;
-}
-
 .hero-content {
   position: relative;
   z-index: 3;
@@ -93,22 +91,31 @@ a:focus-visible {
   width: min(100%, 50rem);
   min-height: 100svh;
   margin-left: auto;
-  padding: clamp(8rem, 18vh, 13rem) clamp(1.5rem, 4vw, 4rem) clamp(1.5rem, 4vw, 4rem) 0;
-  opacity: calc(1 - var(--about-progress));
-  transform: translate3d(0, calc(var(--about-progress) * -2rem), 0) scale(calc(1 - (var(--about-progress) * 0.08)));
-  transform-origin: right top;
+  padding: var(--hero-top) var(--page-inset) var(--page-inset) 0;
 }
 
 h1 {
   width: 100%;
-  max-width: 9em;
+  max-width: none;
+  height: var(--name-layout-height, auto);
   margin: 0;
-  font-size: clamp(2.8rem, 6.2vw, 6.5rem);
+  font-size: var(--name-font-size, var(--hero-name-size));
   font-weight: 400;
   letter-spacing: -0.055em;
   line-height: 0.95;
   text-align: right;
   white-space: nowrap;
+  transform: translate3d(
+    0,
+    calc(var(--about-progress) * (var(--about-top) - var(--hero-top))),
+    0
+  );
+  transform-origin: right top;
+}
+
+.name-link {
+  color: inherit;
+  text-decoration: none;
 }
 
 nav {
@@ -133,7 +140,21 @@ nav a:hover {
 }
 
 .nav-about {
-  transform: translateX(calc(var(--about-progress) * 1rem));
+  position: relative;
+  z-index: 5;
+  flex: 0 0 var(--about-link-width, auto);
+  width: var(--about-link-width, auto);
+  height: var(--about-link-height, auto);
+  font-size: var(--about-link-font-size, clamp(1.05rem, 1.75vw, 1.65rem));
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 1;
+  transform: translate3d(
+    calc(var(--about-progress) * var(--about-link-dx)),
+    calc(var(--about-progress) * var(--about-link-dy)),
+    0
+  );
+  transform-origin: left top;
 }
 
 .nav-secondary {
@@ -141,29 +162,31 @@ nav a:hover {
   transform: translateX(calc(var(--about-progress) * 1rem));
 }
 
-.about-lockup {
-  position: absolute;
-  z-index: 4;
-  top: clamp(2rem, 5vw, 5rem);
-  right: clamp(1.5rem, 4vw, 4rem);
-  display: flex;
-  justify-content: flex-end;
-  width: min(100% - 3rem, 60rem);
-  color: #fff;
-  opacity: var(--about-progress);
-  transform: translate3d(0, calc((1 - var(--about-progress)) * -1rem), 0) scale(calc(0.92 + (var(--about-progress) * 0.08)));
-  transform-origin: right top;
-  pointer-events: none;
-  white-space: nowrap;
+.nav-about:hover,
+.nav-about:focus-visible {
+  opacity: 1;
 }
 
-.about-lockup h2 {
-  margin: 0;
-  font-size: clamp(1.6rem, 3vw, 3.25rem);
-  font-weight: 400;
-  letter-spacing: -0.055em;
-  line-height: 0.95;
-  text-align: right;
+.nav-secondary:hover {
+  opacity: calc((1 - var(--about-progress)) * 0.68);
+}
+
+.nav-comma {
+  position: absolute;
+  top: 0;
+  left: var(--about-link-label-width, 100%);
+  opacity: var(--about-progress);
+  pointer-events: none;
+}
+
+.about-target {
+  position: absolute;
+  top: var(--about-top);
+  right: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .about-anchor {
@@ -192,9 +215,15 @@ nav a:hover {
     padding: 1.5rem;
   }
 
+  .about-story {
+    --hero-top: calc(50svh - 2.6rem);
+    --about-top: 1.5rem;
+    --hero-name-size: clamp(2.7rem, 12vw, 4.5rem);
+  }
+
   h1 {
-    font-size: clamp(2.7rem, 12vw, 4.5rem);
     white-space: normal;
+    height: auto;
   }
 
   nav {
@@ -205,16 +234,6 @@ nav a:hover {
     font-size: 1.05rem;
   }
 
-  .about-lockup {
-    top: 1.5rem;
-    right: 1.5rem;
-    width: calc(100% - 3rem);
-    white-space: normal;
-  }
-
-  .about-lockup h2 {
-    font-size: clamp(1.35rem, 6.4vw, 2rem);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
