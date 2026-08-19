@@ -33,6 +33,8 @@ const aboutPhotos = [
   },
 ];
 
+const careerTimelineYears = ['2022', '2023', '2024', '2025', '2026', '2027'];
+
 const fitLabels = {
   strong_fit: 'Strong fit',
   partial_fit: 'Partial fit',
@@ -301,11 +303,77 @@ function usePhotoDeckTilt() {
   return deckRef;
 }
 
+function useResumeTilt() {
+  const resumeRef = useRef(null);
+
+  useEffect(() => {
+    const resume = resumeRef.current;
+    if (!resume) return undefined;
+
+    let frame = 0;
+    let currentRotateX = 0;
+    let currentRotateY = 0;
+    let targetRotateX = 0;
+    let targetRotateY = 0;
+
+    const applyTilt = () => {
+      frame = 0;
+      currentRotateX += (targetRotateX - currentRotateX) * 0.14;
+      currentRotateY += (targetRotateY - currentRotateY) * 0.14;
+      resume.style.setProperty('--resume-rotate-x', `${currentRotateX}deg`);
+      resume.style.setProperty('--resume-rotate-y', `${currentRotateY}deg`);
+
+      if (
+        Math.abs(targetRotateX - currentRotateX) > 0.01 ||
+        Math.abs(targetRotateY - currentRotateY) > 0.01
+      ) {
+        frame = window.requestAnimationFrame(applyTilt);
+      }
+    };
+
+    const scheduleTilt = () => {
+      if (!frame) frame = window.requestAnimationFrame(applyTilt);
+    };
+
+    const handlePointerMove = (event) => {
+      const rect = resume.getBoundingClientRect();
+      const x = (event.clientX - (rect.left + rect.width / 2)) / (rect.width / 2 || 1);
+      const y = (event.clientY - (rect.top + rect.height / 2)) / (rect.height / 2 || 1);
+      targetRotateX = Math.max(-7, Math.min(7, y * -7));
+      targetRotateY = Math.max(-9, Math.min(9, x * 9));
+      scheduleTilt();
+    };
+
+    const resetTilt = () => {
+      targetRotateX = 0;
+      targetRotateY = 0;
+      scheduleTilt();
+    };
+
+    // Keep the card responsive to the pointer across the whole viewport while
+    // the Career section is visible, rather than only while the pointer is
+    // directly over the card.
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerleave', resetTilt);
+    window.addEventListener('blur', resetTilt);
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerleave', resetTilt);
+      window.removeEventListener('blur', resetTilt);
+    };
+  }, []);
+
+  return resumeRef;
+}
+
 export function App() {
   const aboutProgress = useAboutProgress();
   const aboutLinkMotion = useAboutLinkMotion();
   const photoReveal = useAboutPhotoReveal(aboutProgress);
   const photoDeckRef = usePhotoDeckTilt();
+  const resumeCardRef = useResumeTilt();
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [isLightboxClosing, setIsLightboxClosing] = useState(false);
   const [photoOrigin, setPhotoOrigin] = useState(null);
@@ -313,7 +381,6 @@ export function App() {
   const [jobFile, setJobFile] = useState(null);
   const [jobComposerMessage, setJobComposerMessage] = useState('');
   const [isJobDropActive, setIsJobDropActive] = useState(false);
-  const [jobConsent, setJobConsent] = useState(false);
   const [jobSession, setJobSession] = useState(null);
   const [jobMessages, setJobMessages] = useState([]);
   const [jobPendingQuestions, setJobPendingQuestions] = useState([]);
@@ -322,11 +389,37 @@ export function App() {
   const [jobLoading, setJobLoading] = useState(false);
   const [jobError, setJobError] = useState('');
   const [jobSurveyRating, setJobSurveyRating] = useState(null);
+  const [selectedCareerYear, setSelectedCareerYear] = useState(careerTimelineYears[0]);
+  const [isCareerComposerOpen, setIsCareerComposerOpen] = useState(false);
   const jobPanelRef = useRef(null);
   const lightboxPanelRef = useRef(null);
   const lightboxVisualRef = useRef(null);
   const lightboxAnimationRef = useRef(null);
   const jobFileInputRef = useRef(null);
+  const careerJobFileInputRef = useRef(null);
+  useEffect(() => {
+    const cycle = window.setInterval(() => {
+      setSelectedCareerYear((currentYear) => {
+        const currentIndex = careerTimelineYears.indexOf(currentYear);
+        const nextIndex = currentIndex >= 0
+          ? (currentIndex + 1) % careerTimelineYears.length
+          : 0;
+        return careerTimelineYears[nextIndex];
+      });
+    }, 2000);
+
+    return () => window.clearInterval(cycle);
+  }, []);
+
+  const scrollToCareer = useCallback(() => {
+    const careerPanel = jobPanelRef.current;
+    if (!careerPanel) return;
+
+    const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth';
+    careerPanel.scrollIntoView({ behavior, block: 'start' });
+  }, []);
   const aboutCopyProgress = Math.min(1, Math.max(0, (aboutProgress - 0.38) / 0.62));
   const jobComposerProgress = Math.min(1, Math.max(0, aboutProgress));
   const jobComposerScale = 1 - jobComposerProgress * 0.72;
@@ -456,6 +549,8 @@ export function App() {
 
     setJobFile(file);
     setJobComposerMessage('');
+    setIsCareerComposerOpen(true);
+    scrollToCareer();
 
     const isTextFile =
       file.type.startsWith('text/') || /\.(txt|md|rtf)$/i.test(file.name);
@@ -471,7 +566,7 @@ export function App() {
     }
 
     setJobComposerMessage(`${file.name} attached`);
-  }, []);
+  }, [scrollToCareer]);
 
   const handleJobFileChange = (event) => {
     const [file] = event.target.files ?? [];
@@ -486,9 +581,9 @@ export function App() {
     void handleJobFile(file);
   };
 
-  const focusJobPanel = () => {
-    window.requestAnimationFrame(() => jobPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  };
+  const focusJobPanel = useCallback(() => {
+    window.requestAnimationFrame(scrollToCareer);
+  }, [scrollToCareer]);
 
   const handleJobSubmit = async (event) => {
     event.preventDefault();
@@ -496,11 +591,6 @@ export function App() {
       setJobComposerMessage('Paste a job description or upload a file first');
       return;
     }
-    if (!jobConsent) {
-      setJobComposerMessage('Please acknowledge the retention notice before continuing');
-      return;
-    }
-
     setJobLoading(true);
     setJobError('');
     setJobComposerMessage('Reading the role and comparing approved evidence…');
@@ -573,6 +663,125 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const openCareerComposer = () => {
+    setIsCareerComposerOpen(true);
+    scrollToCareer();
+  };
+
+  const renderJobComposer = (variant, fileInputRef) => {
+    const isCareerComposer = variant === 'career';
+    const isCareerTrigger = variant === 'career-trigger';
+
+    return (
+      <form
+        className={isCareerComposer
+          ? `job-composer career-job-composer${isCareerComposerOpen ? ' is-open' : ''}${
+              isJobDropActive ? ' is-dragging' : ''
+            }`
+          : isCareerTrigger
+            ? `job-composer career-job-match-pill${isCareerComposerOpen ? ' is-hidden' : ''}${
+                isJobDropActive ? ' is-dragging' : ''
+              }`
+          : `job-composer${jobComposerProgress > 0.72 ? ' is-minimized' : ''}${
+              isJobDropActive ? ' is-dragging' : ''
+            }`}
+        style={isCareerComposer || isCareerTrigger ? undefined : {
+          '--job-composer-progress': jobComposerProgress,
+          '--job-composer-scale': jobComposerScale,
+          '--job-composer-blur': `${jobComposerBlur}px`,
+          '--job-composer-pill-scale': jobComposerPillScale,
+        }}
+        onSubmit={handleJobSubmit}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setIsJobDropActive(true);
+        }}
+        onDragOver={(event) => event.preventDefault()}
+        onDragLeave={(event) => {
+          if (event.currentTarget === event.target) setIsJobDropActive(false);
+        }}
+        onDrop={handleJobDrop}
+        aria-label={isCareerComposer ? 'Career match workspace' : 'Career match'}
+        aria-hidden={isCareerComposer ? !isCareerComposerOpen : isCareerTrigger ? isCareerComposerOpen : undefined}
+        inert={isCareerComposer ? !isCareerComposerOpen : isCareerTrigger ? isCareerComposerOpen : undefined}
+      >
+        <div
+          className={`job-composer-surface${isCareerComposer ? ' is-expanded' : ''}`}
+          aria-hidden={!isCareerComposer && jobComposerProgress > 0.82}
+        >
+          <div className="job-composer-header">
+            <span className="job-composer-eyebrow">CAREER / MATCH</span>
+            <button
+              className="job-upload-button"
+              type="button"
+              onClick={() => {
+                fileInputRef.current?.click();
+                if (isCareerTrigger) {
+                  openCareerComposer();
+                } else if (!isCareerComposer) {
+                  scrollToCareer();
+                }
+              }}
+            >
+              Upload file
+            </button>
+            <input
+              ref={fileInputRef}
+              className="job-file-input"
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.md,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/rtf"
+              onChange={handleJobFileChange}
+              aria-label="Upload a PDF, Word, or text file"
+            />
+          </div>
+
+          <label className="job-composer-field">
+            <span className="sr-only">Job description</span>
+            <textarea
+              value={jobDescription}
+              onChange={(event) => {
+                setJobDescription(event.target.value);
+                setJobComposerMessage('');
+              }}
+              onFocus={isCareerTrigger ? openCareerComposer : undefined}
+              onPaste={() => {
+                if (isCareerTrigger) setIsCareerComposerOpen(true);
+                if (!isCareerComposer && !isCareerTrigger) setIsCareerComposerOpen(true);
+                window.setTimeout(scrollToCareer, 0);
+              }}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                  event.preventDefault();
+                  void handleJobSubmit(event);
+                }
+              }}
+              placeholder="Paste job description to see if we're a match!"
+              rows={isCareerComposer ? 3 : 1}
+            />
+          </label>
+
+          {isCareerComposer && jobComposerMessage ? (
+            <span className="job-composer-status" role="status">
+              {jobComposerMessage}
+            </span>
+          ) : null}
+        </div>
+
+        {!isCareerComposer && !isCareerTrigger ? (
+          <button
+            className="job-composer-pill"
+            type="button"
+            onClick={handleJobPillClick}
+            aria-label="Return to Job Match"
+            aria-hidden={jobComposerProgress < 0.72}
+          >
+            <span>Job Match</span>
+          </button>
+        ) : null}
+      </form>
+    );
+  };
+
   return (
     <main className="site-shell" id="top">
       <div
@@ -614,101 +823,7 @@ export function App() {
             ))}
           </div>
 
-          <form
-            className={`job-composer${jobComposerProgress > 0.72 ? ' is-minimized' : ''}${
-              isJobDropActive ? ' is-dragging' : ''
-            }`}
-            style={{
-              '--job-composer-progress': jobComposerProgress,
-              '--job-composer-scale': jobComposerScale,
-              '--job-composer-blur': `${jobComposerBlur}px`,
-              '--job-composer-pill-scale': jobComposerPillScale,
-            }}
-            onSubmit={handleJobSubmit}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setIsJobDropActive(true);
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDragLeave={(event) => {
-              if (event.currentTarget === event.target) setIsJobDropActive(false);
-            }}
-            onDrop={handleJobDrop}
-            aria-label="Career match"
-          >
-            <div
-              className="job-composer-surface"
-              aria-hidden={jobComposerProgress > 0.82}
-            >
-              <div className="job-composer-header">
-                <span className="job-composer-eyebrow">CAREER / MATCH</span>
-                <button
-                  className="job-upload-button"
-                  type="button"
-                  onClick={() => jobFileInputRef.current?.click()}
-                >
-                  Upload file
-                </button>
-                <input
-                  ref={jobFileInputRef}
-                  className="job-file-input"
-                  type="file"
-                  accept=".pdf,.doc,.docx,.txt,.md,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/rtf"
-                  onChange={handleJobFileChange}
-                  aria-label="Upload a PDF, Word, or text file"
-                />
-              </div>
-
-              <label className="job-composer-field">
-                <span className="sr-only">Job description</span>
-                <textarea
-                  value={jobDescription}
-                  onChange={(event) => {
-                    setJobDescription(event.target.value);
-                    setJobComposerMessage('');
-                  }}
-                  onKeyDown={(event) => {
-                    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-                      event.preventDefault();
-                      void handleJobSubmit(event);
-                    }
-                  }}
-                  placeholder="Paste job description to see if we're a match!"
-                  rows={1}
-                />
-              </label>
-
-              <div className="job-composer-footer">
-                <span className="job-composer-status" aria-live="polite">
-                  {jobComposerMessage || 'Paste text or drop a PDF / text file'}
-                </span>
-                <label className="job-consent">
-                  <input
-                    type="checkbox"
-                    checked={jobConsent}
-                    onChange={(event) => setJobConsent(event.target.checked)}
-                  />
-                  <span>Retained for Edgar’s review</span>
-                </label>
-                <button
-                  className="job-submit-text"
-                  type="submit"
-                  disabled={jobLoading || (!jobDescription.trim() && !jobFile)}
-                >
-                  {jobLoading ? 'Reading…' : 'Analyze'}
-                </button>
-              </div>
-            </div>
-            <button
-              className="job-composer-pill"
-              type="button"
-              onClick={handleJobPillClick}
-              aria-label="Return to Job Match"
-              aria-hidden={jobComposerProgress < 0.72}
-            >
-              <span>Job Match</span>
-            </button>
-          </form>
+          {renderJobComposer('hero', jobFileInputRef)}
 
           <div
             className={`about-photo-deck${photoReveal ? ' is-visible' : ''}`}
@@ -790,12 +905,54 @@ export function App() {
 
       <section className={`job-lens-panel${jobSession ? ' has-session' : ''}`} id="job-lens" ref={jobPanelRef}>
         <div className="job-lens-inner">
-          <div className="job-lens-intro">
-            <p className="section-eyebrow">CAREER / JOB LENS</p>
-            <h2>See the work behind the résumé.</h2>
-            <p>
-              A bounded, evidence-grounded comparison for recruiters. Submitted material stays with this assessment and is retained for Edgar’s review.
-            </p>
+          <div className={`career-layout${isCareerComposerOpen ? ' is-composer-open' : ''}`}>
+            <aside className="career-timeline" aria-label="Career timeline">
+              <h3 className="career-timeline-heading">Timeline</h3>
+              <div className="career-timeline-list">
+                {careerTimelineYears.map((year) => (
+                  <button
+                    className={`career-timeline-year${selectedCareerYear === year ? ' is-active' : ''}`}
+                    type="button"
+                    key={year}
+                    aria-label={`Select ${year}`}
+                    aria-pressed={selectedCareerYear === year}
+                    onClick={() => setSelectedCareerYear(year)}
+                  >
+                    <span className="career-timeline-year-label">{year}</span>
+                    <span className="career-timeline-marker" aria-hidden="true" />
+                    <span className="career-timeline-slot" aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            <div className="career-resume-column">
+              <h2>Career</h2>
+              <a
+                className="career-resume-card"
+                ref={resumeCardRef}
+                href="/documents/edgar-agunias-resume-2027.pdf"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open Edgar Agunias resume PDF"
+                >
+                <img
+                  src="/images/edgar-resume-2027.svg"
+                  alt="Edgar Agunias resume"
+                  decoding="async"
+                />
+              </a>
+              <a
+                className="career-resume-download"
+                href="/documents/edgar-agunias-resume-2027.pdf"
+                download
+              >
+                Click to download
+              </a>
+            </div>
+
+            {renderJobComposer('career-trigger', careerJobFileInputRef)}
+            {renderJobComposer('career', careerJobFileInputRef)}
           </div>
 
           {jobSession?.session?.assessment ? (
@@ -961,11 +1118,7 @@ export function App() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="job-lens-empty">
-              <p>Paste a role above, accept the retention notice, and select Analyze to begin.</p>
-            </div>
-          )}
+          ) : null}
         </div>
       </section>
     </main>
