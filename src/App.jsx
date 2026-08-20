@@ -668,6 +668,16 @@ export function App() {
     scrollToCareer();
   };
 
+  const handleCareerPanelClick = (event) => {
+    if (!isCareerComposerOpen) return;
+
+    const clickedElement = event.target;
+    if (clickedElement?.closest?.('.career-job-composer, .career-job-match-pill')) return;
+
+    event.preventDefault();
+    setIsCareerComposerOpen(false);
+  };
+
   const renderJobComposer = (variant, fileInputRef) => {
     const isCareerComposer = variant === 'career';
     const isCareerTrigger = variant === 'career-trigger';
@@ -708,6 +718,7 @@ export function App() {
         <div
           className={`job-composer-surface${isCareerComposer ? ' is-expanded' : ''}`}
           aria-hidden={!isCareerComposer && jobComposerProgress > 0.82}
+          onClick={isCareerTrigger ? openCareerComposer : undefined}
         >
           <div className="job-composer-header">
             <span className="job-composer-eyebrow">CAREER / MATCH</span>
@@ -743,7 +754,6 @@ export function App() {
                 setJobDescription(event.target.value);
                 setJobComposerMessage('');
               }}
-              onFocus={isCareerTrigger ? openCareerComposer : undefined}
               onPaste={() => {
                 if (isCareerTrigger) setIsCareerComposerOpen(true);
                 if (!isCareerComposer && !isCareerTrigger) setIsCareerComposerOpen(true);
@@ -903,7 +913,12 @@ export function App() {
         <span className="about-anchor" id="about" aria-hidden="true" />
       </div>
 
-      <section className={`job-lens-panel${jobSession ? ' has-session' : ''}`} id="job-lens" ref={jobPanelRef}>
+      <section
+        className={`job-lens-panel${jobSession ? ' has-session' : ''}`}
+        id="job-lens"
+        ref={jobPanelRef}
+        onClick={handleCareerPanelClick}
+      >
         <div className="job-lens-inner">
           <div className={`career-layout${isCareerComposerOpen ? ' is-composer-open' : ''}`}>
             <aside className="career-timeline" aria-label="Career timeline">
