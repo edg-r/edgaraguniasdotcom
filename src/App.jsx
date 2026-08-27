@@ -152,15 +152,29 @@ function useAboutLinkMotion() {
       }
 
       // Measure the two elements in their starting geometry. This temporarily
-      // removes the scroll-driven transforms so a refresh at #about cannot
-      // overwrite the motion values with already-transformed coordinates.
+      // removes the scroll-driven transforms and measured output variables so
+      // a refresh at #about or a return from Career cannot turn the current
+      // end state into the next starting state.
       const previousHeadingTransform = heading.style.transform;
       const previousAboutTransform = aboutLink.style.transform;
       const previousHeadingFontSize = heading.style.fontSize;
       const previousAboutFontSize = aboutLink.style.fontSize;
+      const measuredStyleProperties = [
+        '--name-font-size',
+        '--name-layout-height',
+        '--about-link-font-size',
+        '--about-link-width',
+        '--about-link-height',
+        '--about-link-label-width',
+      ];
+      const previousMeasuredStyles = measuredStyleProperties.map((property) => [
+        property,
+        story.style.getPropertyValue(property),
+      ]);
 
       heading.style.transform = 'none';
       aboutLink.style.transform = 'none';
+      measuredStyleProperties.forEach((property) => story.style.removeProperty(property));
 
       try {
         const aboutRect = aboutLink.getBoundingClientRect();
@@ -220,6 +234,13 @@ function useAboutLinkMotion() {
         aboutLink.style.transform = previousAboutTransform;
         heading.style.fontSize = previousHeadingFontSize;
         aboutLink.style.fontSize = previousAboutFontSize;
+        previousMeasuredStyles.forEach(([property, value]) => {
+          if (value) {
+            story.style.setProperty(property, value);
+          } else {
+            story.style.removeProperty(property);
+          }
+        });
       }
     };
 
@@ -258,6 +279,12 @@ function usePhotoDeckTilt() {
   useEffect(() => {
     const deck = deckRef.current;
     if (!deck) return undefined;
+
+    const hasFinePointer = window.matchMedia?.('(pointer: fine)').matches ?? true;
+    const prefersReducedMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    if (!hasFinePointer || prefersReducedMotion) return undefined;
 
     let frame = 0;
     let tiltX = 0;
@@ -309,6 +336,12 @@ function useResumeTilt() {
   useEffect(() => {
     const resume = resumeRef.current;
     if (!resume) return undefined;
+
+    const hasFinePointer = window.matchMedia?.('(pointer: fine)').matches ?? true;
+    const prefersReducedMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    if (!hasFinePointer || prefersReducedMotion) return undefined;
 
     let frame = 0;
     let currentRotateX = 0;
@@ -414,6 +447,10 @@ export function App() {
   const scrollToCareer = useCallback(() => {
     const careerPanel = jobPanelRef.current;
     if (!careerPanel) return;
+
+    // When the Career panel is already aligned, starting another smooth
+    // scroll underneath the glass transition only adds a frame of jank.
+    if (Math.abs(careerPanel.getBoundingClientRect().top) <= 24) return;
 
     const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
       ? 'auto'
@@ -681,18 +718,20 @@ export function App() {
   const renderJobComposer = (variant, fileInputRef) => {
     const isCareerComposer = variant === 'career';
     const isCareerTrigger = variant === 'career-trigger';
+    const hasJobContent = jobDescription.trim().length > 0;
+    const contentClass = hasJobContent ? ' has-content' : '';
 
     return (
       <form
         className={isCareerComposer
-          ? `job-composer career-job-composer${isCareerComposerOpen ? ' is-open' : ''}${
+          ? `job-composer career-job-composer${isCareerComposerOpen ? ' is-open' : ''}${contentClass}${
               isJobDropActive ? ' is-dragging' : ''
             }`
           : isCareerTrigger
-            ? `job-composer career-job-match-pill${isCareerComposerOpen ? ' is-hidden' : ''}${
+            ? `job-composer career-job-match-pill${isCareerComposerOpen ? ' is-hidden' : ''}${contentClass}${
                 isJobDropActive ? ' is-dragging' : ''
               }`
-          : `job-composer${jobComposerProgress > 0.72 ? ' is-minimized' : ''}${
+          : `job-composer${jobComposerProgress > 0.72 ? ' is-minimized' : ''}${contentClass}${
               isJobDropActive ? ' is-dragging' : ''
             }`}
         style={isCareerComposer || isCareerTrigger ? undefined : {
@@ -754,6 +793,12 @@ export function App() {
                 setJobDescription(event.target.value);
                 setJobComposerMessage('');
               }}
+              onFocus={() => {
+                if (isCareerTrigger) {
+                  setIsCareerComposerOpen(true);
+                  window.setTimeout(scrollToCareer, 0);
+                }
+              }}
               onPaste={() => {
                 if (isCareerTrigger) setIsCareerComposerOpen(true);
                 if (!isCareerComposer && !isCareerTrigger) setIsCareerComposerOpen(true);
@@ -765,10 +810,16 @@ export function App() {
                   void handleJobSubmit(event);
                 }
               }}
-              placeholder="Paste job description to see if we're a match!"
+              placeholder="Paste a job description…"
               rows={isCareerComposer ? 3 : 1}
             />
           </label>
+
+          {!isCareerTrigger ? (
+            <button className="job-submit-button" type="submit" disabled={jobLoading}>
+              {jobLoading ? 'Working…' : 'Check match'}
+            </button>
+          ) : null}
 
           {isCareerComposer && jobComposerMessage ? (
             <span className="job-composer-status" role="status">
@@ -827,7 +878,12 @@ export function App() {
             alt="Edgar Agunias at a graduation ceremony"
           />
 
-          <div className="about-copy" aria-label="About Me">
+          <div
+            className={`about-copy${aboutCopyProgress > 0.5 ? ' is-interactive' : ''}`}
+            aria-label="About Me"
+            role="region"
+            tabIndex={aboutCopyProgress > 0.5 ? 0 : -1}
+          >
             {aboutCopy.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
