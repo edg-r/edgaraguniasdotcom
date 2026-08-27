@@ -213,6 +213,7 @@ a:focus-visible {
   position: absolute;
   top: 50%;
   right: clamp(0.65rem, 1vw, 0.95rem);
+  min-height: 2.75rem;
   padding: 0.45rem 0.85rem;
   border: 1px solid rgb(255 255 255 / 28%);
   border-radius: 1rem;
@@ -221,7 +222,9 @@ a:focus-visible {
   font: inherit;
   font-size: 0.82rem;
   letter-spacing: -0.02em;
+  white-space: nowrap;
   cursor: pointer;
+  touch-action: manipulation;
   transform: translateY(-50%);
   transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
@@ -231,6 +234,38 @@ a:focus-visible {
   border-color: rgb(255 255 255 / 62%);
   background: rgb(255 255 255 / 20%);
   transform: translateY(calc(-50% - 1px));
+}
+
+.job-submit-button {
+  position: absolute;
+  top: 50%;
+  right: clamp(6rem, 8vw, 8.5rem);
+  min-height: 2.75rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid rgb(255 255 255 / 34%);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 9%);
+  color: rgb(255 255 255 / 92%);
+  font: inherit;
+  font-size: 0.78rem;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transform: translateY(-50%);
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease, opacity 180ms ease;
+}
+
+.job-submit-button:hover,
+.job-submit-button:focus-visible {
+  border-color: rgb(255 255 255 / 68%);
+  background: rgb(255 255 255 / 20%);
+  transform: translateY(calc(-50% - 1px));
+}
+
+.job-submit-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .job-file-input {
@@ -276,7 +311,9 @@ a:focus-visible {
   line-height: 1.2;
   pointer-events: auto;
   text-align: center;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  touch-action: manipulation;
 }
 
 .job-composer-field textarea::placeholder {
@@ -310,6 +347,7 @@ a:focus-visible {
   letter-spacing: -0.025em;
   opacity: var(--job-composer-progress, 0);
   pointer-events: none;
+  touch-action: manipulation;
   transform: translate3d(0, 0, 0) scale3d(
     var(--job-composer-pill-scale, 0.86),
     var(--job-composer-pill-scale, 0.86),
@@ -345,16 +383,18 @@ a:focus-visible {
   min-height: 0;
   pointer-events: none;
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.94);
+  transform: translate3d(-50%, -50%, 0) scale3d(0.94, 0.94, 1);
   transition:
-    opacity 320ms ease,
-    transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 260ms ease,
+    transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+  backface-visibility: hidden;
+  will-change: opacity, transform;
 }
 
 .career-layout.is-composer-open .career-job-composer {
   pointer-events: auto;
   opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate3d(-50%, -50%, 0) scale3d(1, 1, 1);
 }
 
 .career-layout.is-composer-open .career-timeline {
@@ -401,7 +441,10 @@ a:focus-visible {
   pointer-events: auto;
   transform: none;
   transform-origin: center center;
-  will-change: transform, opacity;
+  backface-visibility: hidden;
+  backdrop-filter: blur(20px) saturate(135%);
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+  will-change: auto;
 }
 
 .career-job-composer .job-composer-eyebrow {
@@ -422,8 +465,22 @@ a:focus-visible {
 }
 
 .career-job-composer .job-composer-field {
+  inset: 0 0 2.8rem;
   align-items: start;
   padding: 4.25rem clamp(0.25rem, 1vw, 0.8rem) 0.25rem;
+}
+
+.career-job-composer .job-submit-button {
+  top: auto;
+  left: auto;
+  right: clamp(1.1rem, 2vw, 2rem);
+  bottom: 0.85rem;
+  transform: none;
+}
+
+.career-job-composer .job-submit-button:hover,
+.career-job-composer .job-submit-button:focus-visible {
+  transform: translateY(-1px);
 }
 
 .career-job-composer .job-composer-field textarea {
@@ -443,7 +500,7 @@ a:focus-visible {
   position: absolute;
   bottom: 1rem;
   left: clamp(1.5rem, 3vw, 3.5rem);
-  max-width: calc(100% - 3rem);
+  max-width: calc(100% - 12rem);
   overflow: hidden;
   color: rgb(255 255 255 / 48%);
   font-size: 0.68rem;
@@ -462,8 +519,10 @@ a:focus-visible {
   opacity: 1;
   pointer-events: none;
   transition:
-    opacity 320ms ease,
-    transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 260ms ease,
+    transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+  backface-visibility: hidden;
+  will-change: opacity, transform;
 }
 
 .career-job-match-pill .job-composer-surface {
@@ -472,7 +531,8 @@ a:focus-visible {
   filter: none;
   pointer-events: auto;
   transform: none;
-  will-change: transform, opacity;
+  backface-visibility: hidden;
+  will-change: auto;
 }
 
 .career-job-match-pill.is-hidden {
@@ -553,6 +613,7 @@ a:focus-visible {
   background: transparent;
   color: inherit;
   cursor: zoom-in;
+  touch-action: manipulation;
 }
 
 .about-photo-trigger:focus-visible {
@@ -821,11 +882,11 @@ nav a:hover {
   }
 
   .hero-content {
-    justify-content: center;
-    gap: 1.4rem;
+    justify-content: flex-start;
+    gap: clamp(1rem, 2.5vh, 1.4rem);
     width: 100%;
     margin-left: 0;
-    padding: 1.5rem;
+    padding: clamp(5.75rem, 13vh, 9rem) 1.5rem 1.5rem;
   }
 
   .about-story {
@@ -838,17 +899,26 @@ nav a:hover {
     top: 6.5rem;
     right: 1.5rem;
     width: calc(100% - 3rem);
-    max-height: calc(100svh - 10rem);
+    max-height: max(18rem, calc(100svh - 26rem));
     overflow-y: auto;
-    padding-right: 0.2rem;
-    font-size: 12px;
-    line-height: 1.28;
+    padding: 0.45rem 0.55rem;
+    border-radius: 0.45rem;
+    background: linear-gradient(90deg, rgb(0 0 0 / 32%), rgb(0 0 0 / 12%));
+    font-size: clamp(0.86rem, 3.6vw, 0.98rem);
+    line-height: 1.38;
+    text-shadow: 0 1px 0.7rem rgb(0 0 0 / 68%);
+  }
+
+  .about-copy.is-interactive {
+    pointer-events: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .job-composer {
     left: 1.5rem;
     right: 1.5rem;
-    bottom: 1.5rem;
+    bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem));
     width: auto;
     min-height: 3.95rem;
   }
@@ -856,7 +926,7 @@ nav a:hover {
   .job-composer-surface {
     left: 0;
     width: 100%;
-    min-height: 3.95rem;
+    min-height: 5.4rem;
     padding: 0.45rem;
     border-radius: 1.35rem;
   }
@@ -872,13 +942,56 @@ nav a:hover {
   }
 
   .job-composer-field {
-    padding: 0 4.75rem;
+    inset: 0 0 2.75rem;
+    padding: 0 0.75rem;
   }
 
   .job-upload-button {
+    top: auto;
     right: 0.6rem;
+    bottom: 0.55rem;
     padding: 0.42rem 0.64rem;
     font-size: 0.72rem;
+    transform: none;
+  }
+
+  .job-upload-button:hover,
+  .job-upload-button:focus-visible {
+    transform: translateY(-1px);
+  }
+
+  .job-submit-button {
+    top: auto;
+    right: auto;
+    bottom: 0.55rem;
+    left: 0.6rem;
+    padding: 0.42rem 0.7rem;
+    font-size: 0.72rem;
+    transform: none;
+  }
+
+  .job-submit-button:hover,
+  .job-submit-button:focus-visible {
+    transform: translateY(-1px);
+  }
+
+  .job-composer.has-content .job-composer-field {
+    inset: 0 0 2.75rem;
+    align-items: start;
+    padding: 0.7rem 0.75rem 0;
+  }
+
+  .job-composer.has-content:not(.career-job-composer) .job-composer-surface {
+    min-height: 8.5rem;
+  }
+
+  .job-composer.has-content .job-composer-field textarea {
+    height: 100%;
+    min-height: 2.1rem;
+    max-height: 4.1rem;
+    overflow-y: auto;
+    text-align: left;
+    white-space: pre-wrap;
   }
 
   .job-composer-pill {
@@ -890,20 +1003,28 @@ nav a:hover {
 
   .about-photo-deck {
     left: 1.1rem;
-    top: 50%;
-    gap: 0.7rem;
+    top: auto;
+    bottom: clamp(5.75rem, 11vh, 7rem);
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.65rem;
+    transform: translate3d(-3rem, 1.5rem, 0);
+  }
+
+  .about-photo-deck.is-visible {
+    transform: translate3d(0, 0, 0);
   }
 
   .about-photo-card {
-    width: 45vw;
-    max-width: 13.5rem;
+    width: clamp(9.25rem, 38vw, 12rem);
+    max-width: none;
   }
 
   .about-photo-card-father {
-    width: 34vw;
-    max-width: 10rem;
-    --card-x: 0.5rem;
-    margin-left: 1rem;
+    width: clamp(7rem, 28vw, 9.5rem);
+    --card-x: 0.4rem;
+    --card-y: 0.3rem;
+    margin-left: 0;
   }
 
   .photo-lightbox {
@@ -929,7 +1050,15 @@ nav a:hover {
   }
 
   nav a {
+    position: relative;
     font-size: 1.05rem;
+    touch-action: manipulation;
+  }
+
+  .hero-content nav a::before {
+    position: absolute;
+    inset: -0.7rem -0.3rem;
+    content: '';
   }
 
 }
@@ -954,6 +1083,20 @@ nav a:hover {
   .photo-lightbox-caption {
     transition: none;
     animation: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .about-copy {
+    max-height: max(9rem, calc(100svh - 24rem));
+  }
+
+  .about-photo-card {
+    width: clamp(7.5rem, 36vw, 9.25rem);
+  }
+
+  .about-photo-card-father {
+    width: clamp(5.75rem, 25vw, 7.5rem);
   }
 }
 
@@ -1028,7 +1171,8 @@ nav a:hover {
   display: flex;
   flex-direction: column;
   width: min(100%, 30rem);
-  transition: opacity 500ms ease, transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 260ms ease, transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
 }
 
 .career-timeline-heading {
@@ -1133,9 +1277,10 @@ nav a:hover {
   width: min(100%, 30rem);
   perspective: 1400px;
   transition:
-    opacity 500ms ease,
-    transform 650ms cubic-bezier(0.22, 1, 0.36, 1),
-    width 500ms ease;
+    opacity 260ms ease,
+    transform 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 460ms ease;
+  will-change: opacity, transform;
 }
 
 .career-resume-column h2 {
@@ -1196,12 +1341,17 @@ nav a:hover {
 }
 
 .career-resume-download {
-  margin-top: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin-top: 0.55rem;
+  padding: 0.55rem 0.7rem;
   color: rgb(255 255 255 / 54%);
   font-size: 0.72rem;
   letter-spacing: 0.13em;
   text-decoration: none;
   text-transform: uppercase;
+  touch-action: manipulation;
   transition: color 180ms ease;
 }
 
@@ -1375,8 +1525,12 @@ nav a:hover {
 }
 
 .text-action {
-  padding: 0.4rem 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.7rem;
   font-size: 0.78rem;
+  touch-action: manipulation;
 }
 
 .job-lens-chat {
@@ -1468,8 +1622,10 @@ nav a:hover {
 }
 
 .chat-input-footer button {
+  min-height: 2.75rem;
   padding: 0.38rem 0.72rem;
   font-size: 0.76rem;
+  touch-action: manipulation;
 }
 
 .job-lens-error {
@@ -1514,12 +1670,17 @@ nav a:hover {
 }
 
 .survey-stars button {
+  display: grid;
+  place-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   padding: 0;
   border: 0;
   background: transparent;
   color: rgb(255 255 255 / 28%);
   font-size: 1.1rem;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .survey-stars button.is-rated,
@@ -1554,11 +1715,11 @@ nav a:hover {
   }
 
   .career-resume-card {
-    width: min(100%, 21.6rem, 39.6svh);
+    width: min(100%, 19rem);
   }
 
   .career-timeline {
-    order: 2;
+    order: 3;
     width: 100%;
   }
 
@@ -1569,14 +1730,28 @@ nav a:hover {
   .career-job-match-pill,
   .career-job-composer {
     position: relative;
+    top: auto;
     right: auto;
     bottom: auto;
     left: auto;
     grid-column: 1;
-    order: 3;
+    order: 2;
     width: 100%;
     margin: 0.5rem auto 0;
     transform: none;
+  }
+
+  .career-job-match-pill {
+    pointer-events: auto;
+  }
+
+  .career-job-match-pill.is-hidden,
+  .career-job-composer:not(.is-open) {
+    display: none;
+  }
+
+  .career-job-composer.is-open {
+    display: block;
   }
 
   .career-job-match-pill {
@@ -1609,7 +1784,7 @@ nav a:hover {
   }
 
   .career-job-composer .job-composer-surface {
-    min-height: 8.5rem;
+    min-height: 11.5rem;
     padding: 0.85rem 0.85rem 2.25rem;
     border-radius: 1.35rem;
   }
@@ -1625,11 +1800,16 @@ nav a:hover {
   }
 
   .career-job-composer .job-composer-field {
-    padding: 2.75rem 0.2rem 0.2rem;
+    padding: 3.5rem 0.75rem 0.2rem;
+  }
+
+  .career-job-composer.has-content .job-composer-field {
+    padding: 3.5rem 0.75rem 0.2rem;
   }
 
   .career-job-composer .job-upload-button {
     top: 0.6rem;
+    bottom: auto;
     right: 0.6rem;
   }
 
@@ -1650,5 +1830,15 @@ nav a:hover {
 
   .survey-block {
     justify-content: space-between;
+  }
+}
+
+@media (max-width: 380px) {
+  .career-resume-card {
+    width: min(100%, 16rem);
+  }
+
+  .career-job-match-pill {
+    margin-top: 0.1rem;
   }
 }
