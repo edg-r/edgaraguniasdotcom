@@ -33,6 +33,25 @@ const aboutPhotos = [
   },
 ];
 
+const photographyFrames = [
+  {
+    src: '/images/img-3327.jpg',
+    alt: 'A film photograph of globes behind a wood-and-glass display case',
+  },
+  {
+    src: '/images/about-family.jpg',
+    alt: 'A child and woman pictured at Bolling Air Force Base',
+  },
+  {
+    src: '/images/about-father-and-children.jpg',
+    alt: 'A father with two children at an outdoor gathering',
+  },
+  {
+    src: '/images/about-portrait.jpg',
+    alt: 'Edgar Agunias at a graduation ceremony',
+  },
+];
+
 const careerTimelineYears = ['2022', '2023', '2024', '2025', '2026', '2027'];
 
 const fitLabels = {
@@ -429,7 +448,10 @@ export function App() {
   const lightboxVisualRef = useRef(null);
   const lightboxAnimationRef = useRef(null);
   const jobFileInputRef = useRef(null);
+  const careerTriggerJobFileInputRef = useRef(null);
   const careerJobFileInputRef = useRef(null);
+  const careerScrollFrameRef = useRef(null);
+  const careerScrollRequestedRef = useRef(false);
   useEffect(() => {
     const cycle = window.setInterval(() => {
       setSelectedCareerYear((currentYear) => {
@@ -456,6 +478,30 @@ export function App() {
       ? 'auto'
       : 'smooth';
     careerPanel.scrollIntoView({ behavior, block: 'start' });
+  }, []);
+
+  const openCareerComposer = useCallback(() => {
+    setIsCareerComposerOpen(true);
+
+    // Wait for the expanded Career layout to commit before scrolling. The
+    // request guard keeps rapid taps and bubbling clicks from restarting the
+    // same smooth-scroll transition.
+    if (careerScrollRequestedRef.current) return;
+    careerScrollRequestedRef.current = true;
+    careerScrollFrameRef.current = window.requestAnimationFrame(() => {
+      careerScrollFrameRef.current = null;
+      scrollToCareer();
+    });
+  }, [scrollToCareer]);
+
+  useEffect(() => {
+    if (!isCareerComposerOpen) careerScrollRequestedRef.current = false;
+  }, [isCareerComposerOpen]);
+
+  useEffect(() => () => {
+    if (careerScrollFrameRef.current) {
+      window.cancelAnimationFrame(careerScrollFrameRef.current);
+    }
   }, []);
   const aboutCopyProgress = Math.min(1, Math.max(0, (aboutProgress - 0.38) / 0.62));
   const jobComposerProgress = Math.min(1, Math.max(0, aboutProgress));
@@ -586,8 +632,7 @@ export function App() {
 
     setJobFile(file);
     setJobComposerMessage('');
-    setIsCareerComposerOpen(true);
-    scrollToCareer();
+    openCareerComposer();
 
     const isTextFile =
       file.type.startsWith('text/') || /\.(txt|md|rtf)$/i.test(file.name);
@@ -603,7 +648,7 @@ export function App() {
     }
 
     setJobComposerMessage(`${file.name} attached`);
-  }, [scrollToCareer]);
+  }, [openCareerComposer]);
 
   const handleJobFileChange = (event) => {
     const [file] = event.target.files ?? [];
@@ -697,12 +742,7 @@ export function App() {
   };
 
   const handleJobPillClick = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const openCareerComposer = () => {
-    setIsCareerComposerOpen(true);
-    scrollToCareer();
+    openCareerComposer();
   };
 
   const handleCareerPanelClick = (event) => {
@@ -764,12 +804,13 @@ export function App() {
             <button
               className="job-upload-button"
               type="button"
-              onClick={() => {
+              onClick={(event) => {
+                event.stopPropagation();
                 fileInputRef.current?.click();
                 if (isCareerTrigger) {
                   openCareerComposer();
                 } else if (!isCareerComposer) {
-                  scrollToCareer();
+                  openCareerComposer();
                 }
               }}
             >
@@ -795,14 +836,13 @@ export function App() {
               }}
               onFocus={() => {
                 if (isCareerTrigger) {
-                  setIsCareerComposerOpen(true);
-                  window.setTimeout(scrollToCareer, 0);
+                  openCareerComposer();
                 }
               }}
               onPaste={() => {
-                if (isCareerTrigger) setIsCareerComposerOpen(true);
-                if (!isCareerComposer && !isCareerTrigger) setIsCareerComposerOpen(true);
-                window.setTimeout(scrollToCareer, 0);
+                if (isCareerTrigger || (!isCareerComposer && !isCareerTrigger)) {
+                  openCareerComposer();
+                }
               }}
               onKeyDown={(event) => {
                 if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -833,7 +873,13 @@ export function App() {
             className="job-composer-pill"
             type="button"
             onClick={handleJobPillClick}
-            aria-label="Return to Job Match"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleJobPillClick();
+              }
+            }}
+            aria-label="Open Career Job Match"
             aria-hidden={jobComposerProgress < 0.72}
           >
             <span>Job Match</span>
@@ -1022,7 +1068,7 @@ export function App() {
               </a>
             </div>
 
-            {renderJobComposer('career-trigger', careerJobFileInputRef)}
+            {renderJobComposer('career-trigger', careerTriggerJobFileInputRef)}
             {renderJobComposer('career', careerJobFileInputRef)}
           </div>
 
@@ -1190,6 +1236,71 @@ export function App() {
               </div>
             </div>
           ) : null}
+        </div>
+      </section>
+
+      <section className="photography-panel" id="photography">
+        <div className="photography-inner">
+          <div className="photography-intro">
+            <p className="photography-kicker">PHOTOGRAPHY / 01</p>
+            <h2>Photography</h2>
+            <p className="photography-description">
+              A first room for the photographs. The wider archive lives on Instagram.
+            </p>
+            <a
+              className="instagram-profile-link"
+              href="https://www.instagram.com/edgaragunias/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Open @edgaragunias on Instagram"
+            >
+              <span>@edgaragunias</span>
+              <span>Open Instagram ↗</span>
+            </a>
+          </div>
+
+          <a
+            className="instagram-window"
+            href="https://www.instagram.com/edgaragunias/"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open the @edgaragunias Instagram profile"
+          >
+            <div className="instagram-window-chrome">
+              <span className="instagram-window-dots" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+              <span className="instagram-window-label">INSTAGRAM / PROFILE</span>
+              <span className="instagram-window-address">instagram.com/edgaragunias</span>
+              <span className="instagram-window-open">OPEN ↗</span>
+            </div>
+
+            <div className="instagram-window-content">
+              <div className="instagram-profile-heading">
+                <div className="instagram-avatar">
+                  <img src="/images/about-portrait.jpg" alt="" aria-hidden="true" />
+                </div>
+                <div>
+                  <span className="instagram-profile-label">PHOTOGRAPHY</span>
+                  <strong>@edgaragunias</strong>
+                </div>
+                <span className="instagram-profile-arrow" aria-hidden="true">↗</span>
+              </div>
+
+              <div className="instagram-frame-grid">
+                {photographyFrames.map((frame) => (
+                  <img src={frame.src} alt={frame.alt} key={frame.src} loading="lazy" />
+                ))}
+              </div>
+
+              <div className="instagram-window-footer">
+                <span>Selected frames from the site</span>
+                <span>View the live profile ↗</span>
+              </div>
+            </div>
+          </a>
         </div>
       </section>
     </main>
