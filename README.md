@@ -54,6 +54,7 @@ src/
   styles.css       Typography, layout, responsive rules, and transitions
   main.jsx         React entry point
 public/images/     Optimized user-supplied photography and visual references
+source-images/     Full-resolution originals; scripts/optimize-images.sh encodes them into public/images/
 .github/workflows/ GitHub Pages deployment workflow
 ```
 
