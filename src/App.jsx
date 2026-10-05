@@ -34,6 +34,7 @@ const aboutPhotos = [
 
 // Hung in this order down three rows, column by column. A portrait takes two
 // rows, so each column is three landscapes or one portrait and one landscape.
+// The last print hangs alone in the middle row to close the wall.
 const galleryWall = [
   {
     id: 'img-0527',
@@ -46,29 +47,24 @@ const galleryWall = [
     alt: 'A blurred black-and-white photograph of a couple kissing in a crowd at night',
   },
   {
-    id: 'img-3294',
-    size: 'landscape',
-    alt: 'Tram wires crossing a pale evening sky above a silhouetted church tower and rooftops',
-  },
-  {
     id: 'img-3320',
     size: 'landscape',
     alt: 'The sun setting behind silhouetted buildings under a web of tram wires',
   },
   {
-    id: 'img-5790',
+    id: 'img-9576',
     size: 'landscape',
-    alt: 'A suspension bridge across a river at dusk, with two people sitting on the dark shore',
+    alt: 'White confetti falling over a crowd, seen from above',
+  },
+  {
+    id: 'img-4896',
+    size: 'landscape',
+    alt: 'Sunlight and shadow across a corrugated awning beneath a row of windows',
   },
   {
     id: 'img-5182',
     size: 'portrait',
     alt: 'A windmill beside a canal under a clear pale sky',
-  },
-  {
-    id: 'img-3327',
-    size: 'landscape',
-    alt: 'Globes piled behind a wood-and-glass window',
   },
   {
     id: 'img-0663',
@@ -81,24 +77,24 @@ const galleryWall = [
     alt: 'A black-and-white photograph of police officers seen from behind in a station hall hung with globe lights',
   },
   {
-    id: 'img-9576',
-    size: 'landscape',
-    alt: 'White confetti falling over a crowd, seen from above',
-  },
-  {
     id: 'img-6555',
     size: 'landscape',
     alt: 'A person holding pink cotton candy in front of their face',
   },
   {
-    id: 'img-6036',
-    size: 'portrait',
-    alt: 'A person walking through an airport hall carrying a jacket and a bag',
+    id: 'img-5760',
+    size: 'landscape',
+    alt: 'A black-and-white photograph of a crenellated stone castle wall',
   },
   {
     id: 'img-6028',
     size: 'landscape',
     alt: 'A traveler walking past a yellow airport sign for the baggage hall and arrivals, with a light leak on the left of the frame',
+  },
+  {
+    id: 'img-6036',
+    size: 'portrait',
+    alt: 'A person walking through an airport hall carrying a jacket and a bag',
   },
   {
     id: 'img-6038',
@@ -111,19 +107,15 @@ const galleryWall = [
     alt: 'A red-and-white traffic mirror on a brick wall reflecting a sunlit street',
   },
   {
-    id: 'img-4896',
-    size: 'landscape',
-    alt: 'Sunlight and shadow across a corrugated awning beneath a row of windows',
-  },
-  {
-    id: 'img-5760',
-    size: 'landscape',
-    alt: 'A black-and-white photograph of a crenellated stone castle wall',
-  },
-  {
     id: 'img-8009',
     size: 'landscape',
     alt: 'A black-and-white photograph of an ornate carved stone pavilion roof seen from below',
+  },
+  {
+    id: 'img-5790',
+    size: 'landscape',
+    alt: 'A suspension bridge across a river at dusk, with two people sitting on the dark shore',
+    row: 2,
   },
 ];
 
@@ -936,7 +928,11 @@ export function App() {
           <div className="gallery-wall" ref={wallRef} tabIndex={0} aria-label="Gallery wall">
             <ul className="gallery-wall-track">
               {galleryWall.map(getGalleryPhoto).map((photo) => (
-                <li className={`gallery-hook is-${photo.size}`} key={photo.id}>
+                <li
+                  className={`gallery-hook is-${photo.size}`}
+                  key={photo.id}
+                  style={photo.row ? { gridRow: photo.row } : undefined}
+                >
                   <button
                     className={`gallery-frame${
                       selectedPhoto?.src === photo.src ? ' is-modal-source' : ''
