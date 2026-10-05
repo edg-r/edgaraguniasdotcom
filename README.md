@@ -13,7 +13,7 @@ The opening experience is intentionally minimal: a full-bleed photograph, a smal
 - The existing `About Me` navigation link stays solid while sliding beside the clickable `Edgar Agunias` in the upper-right black space; it grows to the same size and its comma fades in, while the other navigation items fade away.
 - Responsive layout with reduced-motion support and keyboard-visible focus states.
 
-The Career section shows the resume as a pointer-responsive card that opens the PDF, with a download link and a link to LinkedIn. The earlier Job Lens job-matching workspace has been removed from the public site; its API lives in the separate private `edgaragunias-api` project.
+The Career section shows the resume as a pointer-responsive card that opens the PDF, with a download link and a link to LinkedIn.
 
 ## Tech stack
 
@@ -55,7 +55,6 @@ src/
   main.jsx         React entry point
 public/images/     Optimized user-supplied photography and visual references
 .github/workflows/ GitHub Pages deployment workflow
-docs/              Product and implementation notes
 ```
 
 ## Image rights
