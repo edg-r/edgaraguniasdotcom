@@ -32,24 +32,171 @@ const aboutPhotos = [
   },
 ];
 
-const photographyFrames = [
+// Each bay is one column of the gallery wall, hung left to right.
+const galleryWall = [
   {
-    src: '/images/img-3327.jpg',
-    alt: 'A film photograph of globes behind a wood-and-glass display case',
+    lift: '-1.5vh',
+    frames: [
+      {
+        id: 'img-0527',
+        size: 'large',
+        alt: 'A lone rider on horseback crossing a field of yellow wildflowers in front of dark trees',
+      },
+    ],
   },
   {
-    src: '/images/about-family.jpg',
-    alt: 'A child and woman pictured at Bolling Air Force Base',
+    lift: '1vh',
+    frames: [
+      {
+        id: 'img-0245',
+        size: 'portrait',
+        alt: 'A blurred black-and-white photograph of a couple kissing in a crowd at night',
+      },
+    ],
   },
   {
-    src: '/images/about-father-and-children.jpg',
-    alt: 'A father with two children at an outdoor gathering',
+    lift: '0vh',
+    frames: [
+      {
+        id: 'img-3294',
+        size: 'small',
+        alt: 'Tram wires crossing a pale evening sky above a silhouetted church tower and rooftops',
+      },
+      {
+        id: 'img-3320',
+        size: 'small',
+        alt: 'The sun setting behind silhouetted buildings under a web of tram wires',
+      },
+    ],
   },
   {
-    src: '/images/about-portrait.jpg',
-    alt: 'Edgar Agunias at a graduation ceremony',
+    lift: '2vh',
+    frames: [
+      {
+        id: 'img-3327',
+        size: 'large',
+        alt: 'Globes piled behind a wood-and-glass window',
+      },
+    ],
+  },
+  {
+    lift: '-1vh',
+    frames: [
+      {
+        id: 'img-0663',
+        size: 'small',
+        alt: 'A black-and-white photograph of a mounted police officer on a white horse above a crowd',
+      },
+      {
+        id: 'img-4465',
+        size: 'small',
+        alt: 'A black-and-white photograph of police officers seen from behind in a station hall hung with globe lights',
+      },
+    ],
+  },
+  {
+    lift: '0vh',
+    frames: [
+      {
+        id: 'img-5182',
+        size: 'portrait',
+        alt: 'A windmill beside a canal under a clear pale sky',
+      },
+    ],
+  },
+  {
+    lift: '1.5vh',
+    frames: [
+      {
+        id: 'img-9576',
+        size: 'small',
+        alt: 'White confetti falling over a crowd, seen from above',
+      },
+      {
+        id: 'img-6555',
+        size: 'small',
+        alt: 'A person holding pink cotton candy in front of their face',
+      },
+    ],
+  },
+  {
+    lift: '-2vh',
+    frames: [
+      {
+        id: 'img-5790',
+        size: 'large',
+        alt: 'A suspension bridge across a river at dusk, with two people sitting on the dark shore',
+      },
+    ],
+  },
+  {
+    lift: '1vh',
+    frames: [
+      {
+        id: 'img-6036',
+        size: 'portrait',
+        alt: 'A person walking through an airport hall carrying a jacket and a bag',
+      },
+    ],
+  },
+  {
+    lift: '-0.5vh',
+    frames: [
+      {
+        id: 'img-6028',
+        size: 'small',
+        alt: 'A traveler walking past a yellow airport sign for the baggage hall and arrivals, with a light leak on the left of the frame',
+      },
+      {
+        id: 'img-6038',
+        size: 'small',
+        alt: 'A man on a moving walkway holding a folded newspaper behind his back',
+      },
+    ],
+  },
+  {
+    lift: '1vh',
+    frames: [
+      {
+        id: 'img-4901',
+        size: 'small',
+        alt: 'A red-and-white traffic mirror on a brick wall reflecting a sunlit street',
+      },
+      {
+        id: 'img-4896',
+        size: 'small',
+        alt: 'Sunlight and shadow across a corrugated awning beneath a row of windows',
+      },
+    ],
+  },
+  {
+    lift: '-1vh',
+    frames: [
+      {
+        id: 'img-5760',
+        size: 'small',
+        alt: 'A black-and-white photograph of a crenellated stone castle wall',
+      },
+      {
+        id: 'img-8009',
+        size: 'small',
+        alt: 'A black-and-white photograph of an ornate carved stone pavilion roof seen from below',
+      },
+    ],
   },
 ];
+
+function getGalleryPhoto(frame) {
+  const isPortrait = frame.size === 'portrait';
+  return {
+    ...frame,
+    src: `/images/gallery/${frame.id}.webp`,
+    thumb: `/images/gallery/${frame.id}-thumb.webp`,
+    width: isPortrait ? 2 : 3,
+    height: isPortrait ? 3 : 2,
+    isGallery: true,
+  };
+}
 
 function getCardOrientation(element) {
   const transform = getComputedStyle(element).transform;
@@ -399,12 +546,122 @@ function useResumeTilt() {
   return resumeRef;
 }
 
+function useGalleryWall() {
+  const wallRef = useRef(null);
+  const [edges, setEdges] = useState({ atStart: true, atEnd: false });
+
+  useEffect(() => {
+    const wall = wallRef.current;
+    if (!wall) return undefined;
+
+    const updateEdges = () => {
+      const maxScroll = wall.scrollWidth - wall.clientWidth;
+      const atStart = wall.scrollLeft <= 2;
+      const atEnd = wall.scrollLeft >= maxScroll - 2;
+      setEdges((current) =>
+        current.atStart === atStart && current.atEnd === atEnd ? current : { atStart, atEnd },
+      );
+    };
+
+    // Mouse users drag the wall sideways; touch and trackpads use the native
+    // horizontal scroll. A drag must not also open the frame under the pointer.
+    let drag = null;
+    let suppressClick = false;
+
+    const handlePointerDown = (event) => {
+      if (event.pointerType !== 'mouse' || event.button !== 0) return;
+      drag = { x: event.clientX, scrollLeft: wall.scrollLeft, moved: false };
+    };
+
+    const handlePointerMove = (event) => {
+      if (!drag) return;
+      const dx = event.clientX - drag.x;
+      if (!drag.moved && Math.abs(dx) < 6) return;
+      drag.moved = true;
+      wall.classList.add('is-dragging');
+      wall.scrollLeft = drag.scrollLeft - dx;
+    };
+
+    const handlePointerUp = () => {
+      if (!drag) return;
+      suppressClick = drag.moved;
+      drag = null;
+      wall.classList.remove('is-dragging');
+      if (suppressClick) window.setTimeout(() => { suppressClick = false; }, 0);
+    };
+
+    const handleClickCapture = (event) => {
+      if (!suppressClick) return;
+      suppressClick = false;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    const hasFinePointer = window.matchMedia?.('(pointer: fine)').matches ?? true;
+    const prefersReducedMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    const canTilt = hasFinePointer && !prefersReducedMotion;
+    let frame = 0;
+    let tiltX = 0;
+    let tiltY = 0;
+
+    const applyTilt = () => {
+      frame = 0;
+      wall.style.setProperty('--wall-tilt-x', `${tiltX}deg`);
+      wall.style.setProperty('--wall-tilt-y', `${tiltY}deg`);
+    };
+
+    const handleTiltMove = (event) => {
+      handlePointerMove(event);
+      if (!canTilt) return;
+      const x = event.clientX / Math.max(window.innerWidth, 1) - 0.5;
+      const y = event.clientY / Math.max(window.innerHeight, 1) - 0.5;
+      tiltX = y * -2.4;
+      tiltY = x * 4;
+      if (!frame) frame = window.requestAnimationFrame(applyTilt);
+    };
+
+    updateEdges();
+    wall.addEventListener('scroll', updateEdges, { passive: true });
+    wall.addEventListener('pointerdown', handlePointerDown);
+    wall.addEventListener('click', handleClickCapture, true);
+    window.addEventListener('pointermove', handleTiltMove, { passive: true });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+    window.addEventListener('resize', updateEdges);
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      wall.removeEventListener('scroll', updateEdges);
+      wall.removeEventListener('pointerdown', handlePointerDown);
+      wall.removeEventListener('click', handleClickCapture, true);
+      window.removeEventListener('pointermove', handleTiltMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      window.removeEventListener('resize', updateEdges);
+    };
+  }, []);
+
+  const step = useCallback((direction) => {
+    const wall = wallRef.current;
+    if (!wall) return;
+    const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth';
+    wall.scrollBy({ left: direction * wall.clientWidth * 0.7, behavior });
+  }, []);
+
+  return { wallRef, edges, step };
+}
+
 export function App() {
   const aboutProgress = useAboutProgress();
   const aboutLinkMotion = useAboutLinkMotion();
   const photoReveal = useAboutPhotoReveal(aboutProgress);
   const photoDeckRef = usePhotoDeckTilt();
   const resumeCardRef = useResumeTilt();
+  const { wallRef, edges: wallEdges, step: stepWall } = useGalleryWall();
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [isLightboxClosing, setIsLightboxClosing] = useState(false);
   const [photoOrigin, setPhotoOrigin] = useState(null);
@@ -511,7 +768,7 @@ export function App() {
   }, [isLightboxClosing, photoOrigin, selectedPhoto]);
 
   const openPhoto = (photo, event) => {
-    const card = event.currentTarget.closest('.about-photo-card');
+    const card = event.currentTarget.closest('.about-photo-card, .gallery-frame');
     const sourceRect = card?.getBoundingClientRect();
 
     setPhotoOrigin(
@@ -629,10 +886,12 @@ export function App() {
 
         {selectedPhoto ? (
           <div
-            className={`photo-lightbox${isLightboxClosing ? ' is-closing' : ''}`}
+            className={`photo-lightbox${selectedPhoto.isGallery ? ' is-gallery' : ''}${
+              isLightboxClosing ? ' is-closing' : ''
+            }`}
             role="dialog"
             aria-modal="true"
-            aria-label={selectedPhoto.title}
+            aria-label={selectedPhoto.title || selectedPhoto.alt}
             onClick={closePhoto}
           >
             <div className="photo-lightbox-backdrop" aria-hidden="true" />
@@ -644,10 +903,12 @@ export function App() {
                   alt={selectedPhoto.alt}
                 />
               </div>
-              <div className="photo-lightbox-caption">
-                <span>{selectedPhoto.location}</span>
-                <span>{selectedPhoto.description}</span>
-              </div>
+              {selectedPhoto.location || selectedPhoto.description ? (
+                <div className="photo-lightbox-caption">
+                  <span>{selectedPhoto.location}</span>
+                  <span>{selectedPhoto.description}</span>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -676,14 +937,14 @@ export function App() {
               </a>
               <div className="career-resume-links">
                 <a
-                  className="career-resume-link"
+                  className="pill-link"
                   href="/documents/edgar-agunias-resume-2027.pdf"
                   download
                 >
                   Click to download
                 </a>
                 <a
-                  className="career-resume-link"
+                  className="pill-link"
                   href="https://www.linkedin.com/in/edgar-agunias"
                   target="_blank"
                   rel="noreferrer"
@@ -697,67 +958,73 @@ export function App() {
       </section>
 
       <section className="photography-panel" id="photography">
-        <div className="photography-inner">
-          <div className="photography-intro">
-            <p className="photography-kicker">PHOTOGRAPHY / 01</p>
-            <h2>Photography</h2>
-            <p className="photography-description">
-              A first room for the photographs. The wider archive lives on Instagram.
-            </p>
+        <div className="photography-intro">
+          <h2>Photography</h2>
+          <div className="photography-controls">
+            <button
+              className="wall-step"
+              type="button"
+              onClick={() => stepWall(-1)}
+              disabled={wallEdges.atStart}
+              aria-label="Move left along the wall"
+            >
+              ←
+            </button>
+            <button
+              className="wall-step"
+              type="button"
+              onClick={() => stepWall(1)}
+              disabled={wallEdges.atEnd}
+              aria-label="Move right along the wall"
+            >
+              →
+            </button>
             <a
-              className="instagram-profile-link"
+              className="pill-link"
               href="https://www.instagram.com/edgaragunias/"
               target="_blank"
               rel="noreferrer"
               aria-label="Open @edgaragunias on Instagram"
             >
-              <span>@edgaragunias</span>
-              <span>Open Instagram ↗</span>
+              @edgaragunias ↗
             </a>
           </div>
+        </div>
 
-          <a
-            className="instagram-window"
-            href="https://www.instagram.com/edgaragunias/"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Open the @edgaragunias Instagram profile"
-          >
-            <div className="instagram-window-chrome">
-              <span className="instagram-window-dots" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
-              <span className="instagram-window-label">INSTAGRAM / PROFILE</span>
-              <span className="instagram-window-address">instagram.com/edgaragunias</span>
-              <span className="instagram-window-open">OPEN ↗</span>
-            </div>
-
-            <div className="instagram-window-content">
-              <div className="instagram-profile-heading">
-                <div className="instagram-avatar">
-                  <img src="/images/about-portrait.jpg" alt="" aria-hidden="true" />
-                </div>
-                <div>
-                  <span className="instagram-profile-label">PHOTOGRAPHY</span>
-                  <strong>@edgaragunias</strong>
-                </div>
-                <span className="instagram-profile-arrow" aria-hidden="true">↗</span>
-              </div>
-
-              <div className="instagram-frame-grid">
-                {photographyFrames.map((frame) => (
-                  <img src={frame.src} alt={frame.alt} key={frame.src} loading="lazy" />
-                ))}
-              </div>
-
-              <div className="instagram-window-footer">
-                <span>Selected frames from the site</span>
-                <span>View the live profile ↗</span>
-              </div>
-            </div>
-          </a>
+        <div className="gallery-wall-stage">
+          <div className="gallery-wall" ref={wallRef} tabIndex={0} aria-label="Gallery wall">
+            <ul className="gallery-wall-track">
+              {galleryWall.map((bay) => (
+                <li
+                  className="gallery-bay"
+                  key={bay.frames[0].id}
+                  style={{ '--bay-lift': bay.lift }}
+                >
+                  {bay.frames.map(getGalleryPhoto).map((photo) => (
+                    <button
+                      className={`gallery-frame is-${photo.size}${
+                        selectedPhoto?.src === photo.src ? ' is-modal-source' : ''
+                      }`}
+                      type="button"
+                      key={photo.id}
+                      onClick={(event) => openPhoto(photo, event)}
+                      aria-label={`View full screen: ${photo.alt}`}
+                    >
+                      <img
+                        src={photo.thumb}
+                        alt={photo.alt}
+                        width={photo.width}
+                        height={photo.height}
+                        style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
+                        draggable={false}
+                        decoding="async"
+                      />
+                    </button>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
     </main>
