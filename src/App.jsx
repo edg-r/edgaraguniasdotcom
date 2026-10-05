@@ -32,157 +32,98 @@ const aboutPhotos = [
   },
 ];
 
-// Each bay is one column of the gallery wall, hung left to right.
+// Hung in this order down three rows, column by column. A portrait takes two
+// rows, so each column is three landscapes or one portrait and one landscape.
 const galleryWall = [
   {
-    lift: '-1.5vh',
-    frames: [
-      {
-        id: 'img-0527',
-        size: 'large',
-        alt: 'A lone rider on horseback crossing a field of yellow wildflowers in front of dark trees',
-      },
-    ],
+    id: 'img-0527',
+    size: 'landscape',
+    alt: 'A lone rider on horseback crossing a field of yellow wildflowers in front of dark trees',
   },
   {
-    lift: '1vh',
-    frames: [
-      {
-        id: 'img-0245',
-        size: 'portrait',
-        alt: 'A blurred black-and-white photograph of a couple kissing in a crowd at night',
-      },
-    ],
+    id: 'img-0245',
+    size: 'portrait',
+    alt: 'A blurred black-and-white photograph of a couple kissing in a crowd at night',
   },
   {
-    lift: '0vh',
-    frames: [
-      {
-        id: 'img-3294',
-        size: 'small',
-        alt: 'Tram wires crossing a pale evening sky above a silhouetted church tower and rooftops',
-      },
-      {
-        id: 'img-3320',
-        size: 'small',
-        alt: 'The sun setting behind silhouetted buildings under a web of tram wires',
-      },
-    ],
+    id: 'img-3294',
+    size: 'landscape',
+    alt: 'Tram wires crossing a pale evening sky above a silhouetted church tower and rooftops',
   },
   {
-    lift: '2vh',
-    frames: [
-      {
-        id: 'img-3327',
-        size: 'large',
-        alt: 'Globes piled behind a wood-and-glass window',
-      },
-    ],
+    id: 'img-3320',
+    size: 'landscape',
+    alt: 'The sun setting behind silhouetted buildings under a web of tram wires',
   },
   {
-    lift: '-1vh',
-    frames: [
-      {
-        id: 'img-0663',
-        size: 'small',
-        alt: 'A black-and-white photograph of a mounted police officer on a white horse above a crowd',
-      },
-      {
-        id: 'img-4465',
-        size: 'small',
-        alt: 'A black-and-white photograph of police officers seen from behind in a station hall hung with globe lights',
-      },
-    ],
+    id: 'img-5790',
+    size: 'landscape',
+    alt: 'A suspension bridge across a river at dusk, with two people sitting on the dark shore',
   },
   {
-    lift: '0vh',
-    frames: [
-      {
-        id: 'img-5182',
-        size: 'portrait',
-        alt: 'A windmill beside a canal under a clear pale sky',
-      },
-    ],
+    id: 'img-5182',
+    size: 'portrait',
+    alt: 'A windmill beside a canal under a clear pale sky',
   },
   {
-    lift: '1.5vh',
-    frames: [
-      {
-        id: 'img-9576',
-        size: 'small',
-        alt: 'White confetti falling over a crowd, seen from above',
-      },
-      {
-        id: 'img-6555',
-        size: 'small',
-        alt: 'A person holding pink cotton candy in front of their face',
-      },
-    ],
+    id: 'img-3327',
+    size: 'landscape',
+    alt: 'Globes piled behind a wood-and-glass window',
   },
   {
-    lift: '-2vh',
-    frames: [
-      {
-        id: 'img-5790',
-        size: 'large',
-        alt: 'A suspension bridge across a river at dusk, with two people sitting on the dark shore',
-      },
-    ],
+    id: 'img-0663',
+    size: 'landscape',
+    alt: 'A black-and-white photograph of a mounted police officer on a white horse above a crowd',
   },
   {
-    lift: '1vh',
-    frames: [
-      {
-        id: 'img-6036',
-        size: 'portrait',
-        alt: 'A person walking through an airport hall carrying a jacket and a bag',
-      },
-    ],
+    id: 'img-4465',
+    size: 'landscape',
+    alt: 'A black-and-white photograph of police officers seen from behind in a station hall hung with globe lights',
   },
   {
-    lift: '-0.5vh',
-    frames: [
-      {
-        id: 'img-6028',
-        size: 'small',
-        alt: 'A traveler walking past a yellow airport sign for the baggage hall and arrivals, with a light leak on the left of the frame',
-      },
-      {
-        id: 'img-6038',
-        size: 'small',
-        alt: 'A man on a moving walkway holding a folded newspaper behind his back',
-      },
-    ],
+    id: 'img-9576',
+    size: 'landscape',
+    alt: 'White confetti falling over a crowd, seen from above',
   },
   {
-    lift: '1vh',
-    frames: [
-      {
-        id: 'img-4901',
-        size: 'small',
-        alt: 'A red-and-white traffic mirror on a brick wall reflecting a sunlit street',
-      },
-      {
-        id: 'img-4896',
-        size: 'small',
-        alt: 'Sunlight and shadow across a corrugated awning beneath a row of windows',
-      },
-    ],
+    id: 'img-6555',
+    size: 'landscape',
+    alt: 'A person holding pink cotton candy in front of their face',
   },
   {
-    lift: '-1vh',
-    frames: [
-      {
-        id: 'img-5760',
-        size: 'small',
-        alt: 'A black-and-white photograph of a crenellated stone castle wall',
-      },
-      {
-        id: 'img-8009',
-        size: 'small',
-        alt: 'A black-and-white photograph of an ornate carved stone pavilion roof seen from below',
-      },
-    ],
+    id: 'img-6036',
+    size: 'portrait',
+    alt: 'A person walking through an airport hall carrying a jacket and a bag',
+  },
+  {
+    id: 'img-6028',
+    size: 'landscape',
+    alt: 'A traveler walking past a yellow airport sign for the baggage hall and arrivals, with a light leak on the left of the frame',
+  },
+  {
+    id: 'img-6038',
+    size: 'landscape',
+    alt: 'A man on a moving walkway holding a folded newspaper behind his back',
+  },
+  {
+    id: 'img-4901',
+    size: 'landscape',
+    alt: 'A red-and-white traffic mirror on a brick wall reflecting a sunlit street',
+  },
+  {
+    id: 'img-4896',
+    size: 'landscape',
+    alt: 'Sunlight and shadow across a corrugated awning beneath a row of windows',
+  },
+  {
+    id: 'img-5760',
+    size: 'landscape',
+    alt: 'A black-and-white photograph of a crenellated stone castle wall',
+  },
+  {
+    id: 'img-8009',
+    size: 'landscape',
+    alt: 'A black-and-white photograph of an ornate carved stone pavilion roof seen from below',
   },
 ];
 
@@ -994,33 +935,26 @@ export function App() {
         <div className="gallery-wall-stage">
           <div className="gallery-wall" ref={wallRef} tabIndex={0} aria-label="Gallery wall">
             <ul className="gallery-wall-track">
-              {galleryWall.map((bay) => (
-                <li
-                  className="gallery-bay"
-                  key={bay.frames[0].id}
-                  style={{ '--bay-lift': bay.lift }}
-                >
-                  {bay.frames.map(getGalleryPhoto).map((photo) => (
-                    <button
-                      className={`gallery-frame is-${photo.size}${
-                        selectedPhoto?.src === photo.src ? ' is-modal-source' : ''
-                      }`}
-                      type="button"
-                      key={photo.id}
-                      onClick={(event) => openPhoto(photo, event)}
-                      aria-label={`View full screen: ${photo.alt}`}
-                    >
-                      <img
-                        src={photo.thumb}
-                        alt={photo.alt}
-                        width={photo.width}
-                        height={photo.height}
-                        style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
-                        draggable={false}
-                        decoding="async"
-                      />
-                    </button>
-                  ))}
+              {galleryWall.map(getGalleryPhoto).map((photo) => (
+                <li className={`gallery-hook is-${photo.size}`} key={photo.id}>
+                  <button
+                    className={`gallery-frame${
+                      selectedPhoto?.src === photo.src ? ' is-modal-source' : ''
+                    }`}
+                    type="button"
+                    onClick={(event) => openPhoto(photo, event)}
+                    aria-label={`View full screen: ${photo.alt}`}
+                  >
+                    <img
+                      src={photo.thumb}
+                      alt={photo.alt}
+                      width={photo.width}
+                      height={photo.height}
+                      style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
+                      draggable={false}
+                      decoding="async"
+                    />
+                  </button>
                 </li>
               ))}
             </ul>
