@@ -943,9 +943,21 @@ nav a:hover {
   width: 100%;
 }
 
+/* Sized from the viewport and the print's proportions rather than from the
+   file, so the box is final before the full-size image arrives. */
 .photo-lightbox.is-gallery .photo-lightbox-image {
-  max-height: calc(100svh - clamp(3rem, 7vw, 5rem));
+  --viewer-inset: clamp(3rem, 7vw, 5rem);
+  width: auto;
+  max-width: none;
+  height: min(
+    calc(100svh - var(--viewer-inset)),
+    calc((100vw - var(--viewer-inset)) / var(--photo-ratio, 1.5))
+  );
+  max-height: none;
+  aspect-ratio: var(--photo-ratio, 1.5);
+  object-fit: cover;
 }
+
 
 @media (max-width: 700px) {
   .photography-controls .wall-step {

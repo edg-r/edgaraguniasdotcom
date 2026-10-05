@@ -598,6 +598,7 @@ export function App() {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [isLightboxClosing, setIsLightboxClosing] = useState(false);
   const [photoOrigin, setPhotoOrigin] = useState(null);
+  const [fullSizeReadySrc, setFullSizeReadySrc] = useState(null);
   const lightboxPanelRef = useRef(null);
   const lightboxVisualRef = useRef(null);
   const lightboxAnimationRef = useRef(null);
@@ -719,6 +720,16 @@ export function App() {
     );
     setIsLightboxClosing(false);
     setSelectedPhoto(photo);
+
+    // A print leaves the wall showing the copy that is already on screen, so
+    // the flight never waits on the network; the full-size file replaces it
+    // in the same box once it has decoded.
+    if (photo.isGallery) {
+      const fullSize = new Image();
+      const markReady = () => setFullSizeReadySrc(photo.src);
+      fullSize.src = photo.src;
+      fullSize.decode().then(markReady, markReady);
+    }
   };
 
   return (
@@ -832,8 +843,17 @@ export function App() {
               <div className="photo-lightbox-visual" ref={lightboxVisualRef}>
                 <img
                   className="photo-lightbox-image"
-                  src={selectedPhoto.src}
+                  src={
+                    selectedPhoto.isGallery && fullSizeReadySrc !== selectedPhoto.src
+                      ? selectedPhoto.thumb
+                      : selectedPhoto.src
+                  }
                   alt={selectedPhoto.alt}
+                  style={
+                    selectedPhoto.isGallery
+                      ? { '--photo-ratio': selectedPhoto.width / selectedPhoto.height }
+                      : undefined
+                  }
                 />
               </div>
               {selectedPhoto.location || selectedPhoto.description ? (
@@ -939,6 +959,9 @@ export function App() {
                     }`}
                     type="button"
                     onClick={(event) => openPhoto(photo, event)}
+                    onPointerEnter={() => {
+                      new Image().src = photo.src;
+                    }}
                     aria-label={`View full screen: ${photo.alt}`}
                   >
                     <img
