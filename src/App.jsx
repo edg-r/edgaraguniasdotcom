@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createAssessment, sendSessionMessage, submitSurvey } from './jobLens.js';
 
 const navItems = [
   { href: '#about', label: 'About Me', className: 'nav-about' },
-  { href: '#job-lens', label: 'Career', className: 'nav-secondary' },
+  { href: '#career', label: 'Career', className: 'nav-secondary' },
   { href: '#photography', label: 'Photography', className: 'nav-secondary' },
 ];
 
@@ -51,26 +50,6 @@ const photographyFrames = [
     alt: 'Edgar Agunias at a graduation ceremony',
   },
 ];
-
-const careerTimelineYears = ['2022', '2023', '2024', '2025', '2026', '2027'];
-
-const fitLabels = {
-  strong_fit: 'Strong fit',
-  partial_fit: 'Partial fit',
-  not_a_fit: 'Not a fit',
-  uncertain: 'Needs more evidence',
-};
-
-const fitDescriptions = {
-  strong_fit: 'The available evidence supports the core requirements of this role.',
-  partial_fit: 'The evidence connects to important parts of the role, with gaps for the recruiter to review.',
-  not_a_fit: 'The available evidence does not establish a strong match for the role as described.',
-  uncertain: 'The current evidence is not enough to make a confident match judgment yet.',
-};
-
-function displayFitLevel(level) {
-  return fitLabels[level] || fitLabels.uncertain;
-}
 
 function getCardOrientation(element) {
   const transform = getComputedStyle(element).transform;
@@ -429,85 +408,10 @@ export function App() {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [isLightboxClosing, setIsLightboxClosing] = useState(false);
   const [photoOrigin, setPhotoOrigin] = useState(null);
-  const [jobDescription, setJobDescription] = useState('');
-  const [jobFile, setJobFile] = useState(null);
-  const [jobComposerMessage, setJobComposerMessage] = useState('');
-  const [isJobDropActive, setIsJobDropActive] = useState(false);
-  const [jobSession, setJobSession] = useState(null);
-  const [jobMessages, setJobMessages] = useState([]);
-  const [jobPendingQuestions, setJobPendingQuestions] = useState([]);
-  const [jobMessage, setJobMessage] = useState('');
-  const [jobMessageKind, setJobMessageKind] = useState('chat');
-  const [jobLoading, setJobLoading] = useState(false);
-  const [jobError, setJobError] = useState('');
-  const [jobSurveyRating, setJobSurveyRating] = useState(null);
-  const [selectedCareerYear, setSelectedCareerYear] = useState(careerTimelineYears[0]);
-  const [isCareerComposerOpen, setIsCareerComposerOpen] = useState(false);
-  const jobPanelRef = useRef(null);
   const lightboxPanelRef = useRef(null);
   const lightboxVisualRef = useRef(null);
   const lightboxAnimationRef = useRef(null);
-  const jobFileInputRef = useRef(null);
-  const careerTriggerJobFileInputRef = useRef(null);
-  const careerJobFileInputRef = useRef(null);
-  const careerScrollFrameRef = useRef(null);
-  const careerScrollRequestedRef = useRef(false);
-  useEffect(() => {
-    const cycle = window.setInterval(() => {
-      setSelectedCareerYear((currentYear) => {
-        const currentIndex = careerTimelineYears.indexOf(currentYear);
-        const nextIndex = currentIndex >= 0
-          ? (currentIndex + 1) % careerTimelineYears.length
-          : 0;
-        return careerTimelineYears[nextIndex];
-      });
-    }, 2000);
-
-    return () => window.clearInterval(cycle);
-  }, []);
-
-  const scrollToCareer = useCallback(() => {
-    const careerPanel = jobPanelRef.current;
-    if (!careerPanel) return;
-
-    // When the Career panel is already aligned, starting another smooth
-    // scroll underneath the glass transition only adds a frame of jank.
-    if (Math.abs(careerPanel.getBoundingClientRect().top) <= 24) return;
-
-    const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-      ? 'auto'
-      : 'smooth';
-    careerPanel.scrollIntoView({ behavior, block: 'start' });
-  }, []);
-
-  const openCareerComposer = useCallback(() => {
-    setIsCareerComposerOpen(true);
-
-    // Wait for the expanded Career layout to commit before scrolling. The
-    // request guard keeps rapid taps and bubbling clicks from restarting the
-    // same smooth-scroll transition.
-    if (careerScrollRequestedRef.current) return;
-    careerScrollRequestedRef.current = true;
-    careerScrollFrameRef.current = window.requestAnimationFrame(() => {
-      careerScrollFrameRef.current = null;
-      scrollToCareer();
-    });
-  }, [scrollToCareer]);
-
-  useEffect(() => {
-    if (!isCareerComposerOpen) careerScrollRequestedRef.current = false;
-  }, [isCareerComposerOpen]);
-
-  useEffect(() => () => {
-    if (careerScrollFrameRef.current) {
-      window.cancelAnimationFrame(careerScrollFrameRef.current);
-    }
-  }, []);
   const aboutCopyProgress = Math.min(1, Math.max(0, (aboutProgress - 0.38) / 0.62));
-  const jobComposerProgress = Math.min(1, Math.max(0, aboutProgress));
-  const jobComposerScale = 1 - jobComposerProgress * 0.72;
-  const jobComposerBlur = jobComposerProgress * 3;
-  const jobComposerPillScale = 0.86 + jobComposerProgress * 0.14;
   const nameFontSize = aboutLinkMotion.nameFontSize
     ? aboutLinkMotion.nameFontSize *
       (1 - aboutProgress * (1 - aboutLinkMotion.nameScaleEnd))
@@ -627,268 +531,6 @@ export function App() {
     setSelectedPhoto(photo);
   };
 
-  const handleJobFile = useCallback(async (file) => {
-    if (!file) return;
-
-    setJobFile(file);
-    setJobComposerMessage('');
-    openCareerComposer();
-
-    const isTextFile =
-      file.type.startsWith('text/') || /\.(txt|md|rtf)$/i.test(file.name);
-
-    if (isTextFile) {
-      try {
-        setJobDescription(await file.text());
-        setJobComposerMessage(`Loaded ${file.name}`);
-      } catch {
-        setJobComposerMessage('This text file could not be read.');
-      }
-      return;
-    }
-
-    setJobComposerMessage(`${file.name} attached`);
-  }, [openCareerComposer]);
-
-  const handleJobFileChange = (event) => {
-    const [file] = event.target.files ?? [];
-    void handleJobFile(file);
-    event.target.value = '';
-  };
-
-  const handleJobDrop = (event) => {
-    event.preventDefault();
-    setIsJobDropActive(false);
-    const [file] = event.dataTransfer.files ?? [];
-    void handleJobFile(file);
-  };
-
-  const focusJobPanel = useCallback(() => {
-    window.requestAnimationFrame(scrollToCareer);
-  }, [scrollToCareer]);
-
-  const handleJobSubmit = async (event) => {
-    event.preventDefault();
-    if (!jobDescription.trim() && !jobFile) {
-      setJobComposerMessage('Paste a job description or upload a file first');
-      return;
-    }
-    setJobLoading(true);
-    setJobError('');
-    setJobComposerMessage('Reading the role and comparing approved evidence…');
-    try {
-      const data = await createAssessment({ description: jobDescription, file: jobFile });
-      setJobSession(data);
-      setJobMessages(data.messages || []);
-      setJobPendingQuestions(data.session?.assessment?.follow_up_questions || []);
-      setJobMessageKind(data.session?.assessment?.follow_up_questions?.length ? 'clarification' : 'chat');
-      setJobMessage('');
-      setJobComposerMessage('Assessment ready below');
-      focusJobPanel();
-    } catch (error) {
-      setJobError(error.message || 'The Job Lens service could not complete that request.');
-      setJobComposerMessage('The assessment could not be completed');
-    } finally {
-      setJobLoading(false);
-    }
-  };
-
-  const handleJobMessage = async (event, kind = jobMessageKind) => {
-    event?.preventDefault?.();
-    const message = jobMessage.trim();
-    const sessionId = jobSession?.session?.session_id;
-    if (!message || !sessionId || jobLoading) return;
-
-    setJobLoading(true);
-    setJobError('');
-    setJobMessages((current) => [
-      ...current,
-      { role: 'user', kind, content: message, created_at: new Date().toISOString() },
-    ]);
-    setJobMessage('');
-    try {
-      const data = await sendSessionMessage(sessionId, message, kind);
-      setJobSession((current) => (current ? { ...current, session: data.session } : current));
-      setJobPendingQuestions(data.follow_up_questions || []);
-      setJobMessageKind(data.follow_up_questions?.length ? 'clarification' : 'chat');
-      setJobMessages((current) => [
-        ...current,
-        {
-          role: 'assistant',
-          kind: data.assessment ? 'assessment' : 'chat',
-          content: data.reply,
-          citations: data.citations || [],
-          created_at: new Date().toISOString(),
-        },
-      ]);
-      setJobMessageKind(kind === 'clarification' && data.follow_up_questions?.length ? 'clarification' : 'chat');
-      if (data.budget_exhausted) setJobComposerMessage('This session has reached its inference budget');
-    } catch (error) {
-      setJobError(error.message || 'The Job Lens service could not answer that.');
-    } finally {
-      setJobLoading(false);
-    }
-  };
-
-  const handleJobSurvey = async (rating) => {
-    const sessionId = jobSession?.session?.session_id;
-    if (!sessionId || jobSurveyRating) return;
-    try {
-      await submitSurvey(sessionId, rating);
-      setJobSurveyRating(rating);
-    } catch (error) {
-      setJobError(error.message || 'The rating could not be saved.');
-    }
-  };
-
-  const handleJobPillClick = () => {
-    openCareerComposer();
-  };
-
-  const handleCareerPanelClick = (event) => {
-    if (!isCareerComposerOpen) return;
-
-    const clickedElement = event.target;
-    if (clickedElement?.closest?.('.career-job-composer, .career-job-match-pill')) return;
-
-    event.preventDefault();
-    setIsCareerComposerOpen(false);
-  };
-
-  const renderJobComposer = (variant, fileInputRef) => {
-    const isCareerComposer = variant === 'career';
-    const isCareerTrigger = variant === 'career-trigger';
-    const hasJobContent = jobDescription.trim().length > 0;
-    const contentClass = hasJobContent ? ' has-content' : '';
-
-    return (
-      <form
-        className={isCareerComposer
-          ? `job-composer career-job-composer${isCareerComposerOpen ? ' is-open' : ''}${contentClass}${
-              isJobDropActive ? ' is-dragging' : ''
-            }`
-          : isCareerTrigger
-            ? `job-composer career-job-match-pill${isCareerComposerOpen ? ' is-hidden' : ''}${contentClass}${
-                isJobDropActive ? ' is-dragging' : ''
-              }`
-          : `job-composer${jobComposerProgress > 0.72 ? ' is-minimized' : ''}${contentClass}${
-              isJobDropActive ? ' is-dragging' : ''
-            }`}
-        style={isCareerComposer || isCareerTrigger ? undefined : {
-          '--job-composer-progress': jobComposerProgress,
-          '--job-composer-scale': jobComposerScale,
-          '--job-composer-blur': `${jobComposerBlur}px`,
-          '--job-composer-pill-scale': jobComposerPillScale,
-        }}
-        onSubmit={handleJobSubmit}
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setIsJobDropActive(true);
-        }}
-        onDragOver={(event) => event.preventDefault()}
-        onDragLeave={(event) => {
-          if (event.currentTarget === event.target) setIsJobDropActive(false);
-        }}
-        onDrop={handleJobDrop}
-        aria-label={isCareerComposer ? 'Career match workspace' : 'Career match'}
-        aria-hidden={isCareerComposer ? !isCareerComposerOpen : isCareerTrigger ? isCareerComposerOpen : undefined}
-        inert={isCareerComposer ? !isCareerComposerOpen : isCareerTrigger ? isCareerComposerOpen : undefined}
-      >
-        <div
-          className={`job-composer-surface${isCareerComposer ? ' is-expanded' : ''}`}
-          aria-hidden={!isCareerComposer && jobComposerProgress > 0.82}
-          onClick={isCareerTrigger ? openCareerComposer : undefined}
-        >
-          <div className="job-composer-header">
-            <span className="job-composer-eyebrow">CAREER / MATCH</span>
-            <button
-              className="job-upload-button"
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                fileInputRef.current?.click();
-                if (isCareerTrigger) {
-                  openCareerComposer();
-                } else if (!isCareerComposer) {
-                  openCareerComposer();
-                }
-              }}
-            >
-              Upload file
-            </button>
-            <input
-              ref={fileInputRef}
-              className="job-file-input"
-              type="file"
-              accept=".pdf,.doc,.docx,.txt,.md,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,application/rtf"
-              onChange={handleJobFileChange}
-              aria-label="Upload a PDF, Word, or text file"
-            />
-          </div>
-
-          <label className="job-composer-field">
-            <span className="sr-only">Job description</span>
-            <textarea
-              value={jobDescription}
-              onChange={(event) => {
-                setJobDescription(event.target.value);
-                setJobComposerMessage('');
-              }}
-              onFocus={() => {
-                if (isCareerTrigger) {
-                  openCareerComposer();
-                }
-              }}
-              onPaste={() => {
-                if (isCareerTrigger || (!isCareerComposer && !isCareerTrigger)) {
-                  openCareerComposer();
-                }
-              }}
-              onKeyDown={(event) => {
-                if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-                  event.preventDefault();
-                  void handleJobSubmit(event);
-                }
-              }}
-              placeholder="Paste a job description…"
-              rows={isCareerComposer ? 3 : 1}
-            />
-          </label>
-
-          {!isCareerTrigger ? (
-            <button className="job-submit-button" type="submit" disabled={jobLoading}>
-              {jobLoading ? 'Working…' : 'Check match'}
-            </button>
-          ) : null}
-
-          {isCareerComposer && jobComposerMessage ? (
-            <span className="job-composer-status" role="status">
-              {jobComposerMessage}
-            </span>
-          ) : null}
-        </div>
-
-        {!isCareerComposer && !isCareerTrigger ? (
-          <button
-            className="job-composer-pill"
-            type="button"
-            onClick={handleJobPillClick}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                handleJobPillClick();
-              }
-            }}
-            aria-label="Open Career Job Match"
-            aria-hidden={jobComposerProgress < 0.72}
-          >
-            <span>Job Match</span>
-          </button>
-        ) : null}
-      </form>
-    );
-  };
-
   return (
     <main className="site-shell" id="top">
       <div
@@ -934,8 +576,6 @@ export function App() {
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
-
-          {renderJobComposer('hero', jobFileInputRef)}
 
           <div
             className={`about-photo-deck${photoReveal ? ' is-visible' : ''}`}
@@ -1015,34 +655,9 @@ export function App() {
         <span className="about-anchor" id="about" aria-hidden="true" />
       </div>
 
-      <section
-        className={`job-lens-panel${jobSession ? ' has-session' : ''}`}
-        id="job-lens"
-        ref={jobPanelRef}
-        onClick={handleCareerPanelClick}
-      >
-        <div className="job-lens-inner">
-          <div className={`career-layout${isCareerComposerOpen ? ' is-composer-open' : ''}`}>
-            <aside className="career-timeline" aria-label="Career timeline">
-              <h3 className="career-timeline-heading">Timeline</h3>
-              <div className="career-timeline-list">
-                {careerTimelineYears.map((year) => (
-                  <button
-                    className={`career-timeline-year${selectedCareerYear === year ? ' is-active' : ''}`}
-                    type="button"
-                    key={year}
-                    aria-label={`Select ${year}`}
-                    aria-pressed={selectedCareerYear === year}
-                    onClick={() => setSelectedCareerYear(year)}
-                  >
-                    <span className="career-timeline-year-label">{year}</span>
-                    <span className="career-timeline-marker" aria-hidden="true" />
-                    <span className="career-timeline-slot" aria-hidden="true" />
-                  </button>
-                ))}
-              </div>
-            </aside>
-
+      <section className="career-panel" id="career">
+        <div className="career-inner">
+          <div className="career-layout">
             <div className="career-resume-column">
               <h2>Career</h2>
               <a
@@ -1052,190 +667,32 @@ export function App() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Open Edgar Agunias resume PDF"
-                >
+              >
                 <img
                   src="/images/edgar-resume-2027.svg"
                   alt="Edgar Agunias resume"
                   decoding="async"
                 />
               </a>
-              <a
-                className="career-resume-download"
-                href="/documents/edgar-agunias-resume-2027.pdf"
-                download
-              >
-                Click to download
-              </a>
+              <div className="career-resume-links">
+                <a
+                  className="career-resume-link"
+                  href="/documents/edgar-agunias-resume-2027.pdf"
+                  download
+                >
+                  Click to download
+                </a>
+                <a
+                  className="career-resume-link"
+                  href="https://www.linkedin.com/in/edgar-agunias"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  LinkedIn ↗
+                </a>
+              </div>
             </div>
-
-            {renderJobComposer('career-trigger', careerTriggerJobFileInputRef)}
-            {renderJobComposer('career', careerJobFileInputRef)}
           </div>
-
-          {jobSession?.session?.assessment ? (
-            <div className="job-lens-results">
-              <div className="job-lens-result-head">
-                <div>
-                  <p className="result-kicker">ASSESSMENT {jobSession.session.assessment.ordinal}</p>
-                  <h3>{displayFitLevel(jobSession.session.assessment.fit_level)}</h3>
-                </div>
-                <span className={`fit-badge fit-${jobSession.session.assessment.fit_level}`}>
-                  {jobSession.session.assessment.final ? 'Final' : 'Reviewable'}
-                </span>
-              </div>
-
-              <p className="job-lens-headline">{jobSession.session.assessment.headline}</p>
-              <p className="job-lens-summary">
-                {jobSession.session.assessment.summary || fitDescriptions[jobSession.session.assessment.fit_level]}
-              </p>
-
-              <div className="job-lens-columns">
-                <div>
-                  <p className="result-kicker">CONNECTED TO THE ROLE</p>
-                  <div className="requirement-list">
-                    {jobSession.session.assessment.requirements?.length ? (
-                      jobSession.session.assessment.requirements.map((item, index) => (
-                        <article className="requirement-card" key={`${item.requirement}-${index}`}>
-                          <div className="requirement-card-head">
-                            <strong>{item.requirement}</strong>
-                            <span className={`requirement-status status-${item.status}`}>
-                              {item.status.replace('_', ' ')}
-                            </span>
-                          </div>
-                          <p>{item.explanation}</p>
-                          {item.evidence?.length ? (
-                            <div className="evidence-links">
-                              {item.evidence.map((evidence) => (
-                                <a href={evidence.project_url || evidence.artifact_url || '#'} target="_blank" rel="noreferrer" key={`${evidence.evidence_id}-${evidence.title}`}>
-                                  {evidence.title} ↗
-                                </a>
-                              ))}
-                            </div>
-                          ) : null}
-                        </article>
-                      ))
-                    ) : (
-                      <p className="muted-result">No specific connections were returned yet.</p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="result-kicker">GAPS / UNCERTAINTY</p>
-                  {jobSession.session.assessment.gaps?.length ? (
-                    <ul className="gap-list">
-                      {jobSession.session.assessment.gaps.map((gap) => <li key={gap}>{gap}</li>)}
-                    </ul>
-                  ) : (
-                    <p className="muted-result">No unresolved gaps were returned.</p>
-                  )}
-                  <p className="result-note">{fitDescriptions[jobSession.session.assessment.fit_level]}</p>
-                </div>
-              </div>
-
-              {jobPendingQuestions.length ? (
-                <div className="follow-up-box">
-                  <div>
-                    <p className="result-kicker">OPTIONAL FOLLOW-UP</p>
-                    <p>These questions only clarify a gap or connect the role to an approved project. You can answer them together or skip them.</p>
-                  </div>
-                  <ol>
-                    {jobPendingQuestions.map((question) => <li key={question}>{question}</li>)}
-                  </ol>
-                  <button type="button" className="text-action" onClick={() => setJobMessageKind('clarification')}>
-                    Answer follow-ups
-                  </button>
-                  <button type="button" className="text-action" onClick={() => setJobMessageKind('chat')}>
-                    Ask about a project
-                  </button>
-                </div>
-              ) : null}
-
-              <div className="job-lens-chat">
-                <div className="chat-heading">
-                  <div>
-                    <p className="result-kicker">ASK ABOUT THE WORK</p>
-                    <p>Ask about a project or evidence item. Luna can explain approved work and link you to the source.</p>
-                  </div>
-                  <span className="budget-readout">${jobSession.session.budget_spent_usd.toFixed(2)} / $5 session budget</span>
-                </div>
-                <div className="chat-transcript" aria-live="polite">
-                  {jobMessages.length ? jobMessages.map((message, index) => (
-                    <div className={`chat-message chat-${message.role}`} key={`${message.created_at}-${index}`}>
-                      <span>{message.role === 'user' ? 'Recruiter' : 'Job Lens'}</span>
-                      <p>{message.content}</p>
-                      {message.citations?.length ? (
-                        <div className="evidence-links">
-                          {message.citations.map((citation) => (
-                            <a href={citation.project_url || citation.artifact_url || '#'} target="_blank" rel="noreferrer" key={`${citation.evidence_id}-${citation.title}`}>
-                              {citation.title} ↗
-                            </a>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  )) : (
-                    <p className="muted-result">The evidence conversation will appear here.</p>
-                  )}
-                </div>
-                <form className="chat-input-form" onSubmit={(event) => handleJobMessage(event, jobMessageKind)}>
-                  <textarea
-                    value={jobMessage}
-                    onChange={(event) => setJobMessage(event.target.value)}
-                    placeholder={jobPendingQuestions.length ? 'Answer the follow-ups or ask about an approved project…' : 'Ask about an approved project…'}
-                    rows={3}
-                    aria-label="Ask Job Lens about Edgar's work"
-                  />
-                  <div className="chat-input-footer">
-                    <span>{jobMessageKind === 'clarification' ? 'Answering targeted follow-ups' : 'Evidence-grounded project Q&A'}</span>
-                    <button type="submit" disabled={jobLoading || !jobMessage.trim()}>
-                      {jobLoading ? 'Working…' : 'Send'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {jobError ? <p className="job-lens-error" role="alert">{jobError}</p> : null}
-
-              {jobSession.session.assessment.final ? (
-                <div className="contact-box">
-                  <p className="result-kicker">NEXT STEP</p>
-                  <p>The final assessment is complete. For more context, contact Edgar directly.</p>
-                  <a
-                    className="contact-link"
-                    href={`mailto:edgar.agunias@gmail.com?subject=${encodeURIComponent(`Job Lens assessment – ${jobSession.session.session_id}`)}&body=${encodeURIComponent('Hello Edgar,\n\nI reviewed your Job Lens assessment for [role/company]. I would like to follow up about…\n')}`}
-                  >
-                    Draft an email to Edgar ↗
-                  </a>
-                </div>
-              ) : null}
-
-              <div className="job-lens-footer">
-                <details>
-                  <summary>Privacy and deletion</summary>
-                  <p>{jobSession.privacy_notice}</p>
-                  <p>Your deletion request ID: <code>{jobSession.session.deletion_request_id}</code></p>
-                </details>
-                <div className="survey-block">
-                  <span>How was this experience?</span>
-                  <div className="survey-stars" aria-label="Rate this experience from one to five stars">
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <button
-                        type="button"
-                        key={rating}
-                        className={jobSurveyRating && rating <= jobSurveyRating ? 'is-rated' : ''}
-                        onClick={() => handleJobSurvey(rating)}
-                        aria-label={`${rating} out of 5 stars`}
-                        disabled={Boolean(jobSurveyRating)}
-                      >
-                        ★
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
         </div>
       </section>
 
