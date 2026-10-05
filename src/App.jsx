@@ -15,7 +15,9 @@ const aboutCopy = [
 const aboutPhotos = [
   {
     className: 'about-photo-card-family',
-    src: '/images/about-family.jpg',
+    src: '/images/about-family.webp',
+    width: 1800,
+    height: 1442,
     alt: 'A child and woman pictured at Bolling Air Force Base',
     title: 'Bolling Airforce Base image',
     location: '2002 Bolling Airforce Base, DC',
@@ -24,7 +26,9 @@ const aboutPhotos = [
   },
   {
     className: 'about-photo-card-father',
-    src: '/images/about-father-and-children.jpg',
+    src: '/images/about-father-and-children.webp',
+    width: 671,
+    height: 1024,
     alt: 'A father with two children at an outdoor gathering',
     title: 'Photo with my brother and father',
     location: '2004 Sicily, Italy - Naval Air Station Sigonella',
@@ -118,6 +122,25 @@ const galleryWall = [
     row: 2,
   },
 ];
+
+// The story photographs fill the viewport with `object-fit: cover`, so on a
+// screen narrower than the 3:2 frame the picture is sized by height instead.
+// Phones take one fixed file; the preload in index.html mirrors these rules.
+function StoryImage({ name, className, alt, fetchPriority }) {
+  return (
+    <picture>
+      <source media="(max-width: 600px)" srcSet={`/images/${name}-1920.webp`} />
+      <img
+        className={className}
+        src={`/images/${name}-1600.webp`}
+        srcSet={`/images/${name}-1600.webp 1600w, /images/${name}-2400.webp 2400w`}
+        sizes="(max-aspect-ratio: 3/2) 151vh, 100vw"
+        alt={alt}
+        fetchPriority={fetchPriority}
+      />
+    </picture>
+  );
+}
 
 function getGalleryPhoto(frame) {
   const isPortrait = frame.size === 'portrait';
@@ -565,6 +588,30 @@ function useResumeTilt() {
 function useGalleryWall() {
   const wallRef = useRef(null);
   const [edges, setEdges] = useState({ atStart: true, atEnd: false });
+  const [isNear, setIsNear] = useState(false);
+
+  // The prints are three screens down, so their files wait until the wall is
+  // within a screen and a half. That keeps them out of the first page load
+  // while still landing before the wall scrolls into view.
+  useEffect(() => {
+    const wall = wallRef.current;
+    if (!wall) return undefined;
+    if (!('IntersectionObserver' in window)) {
+      setIsNear(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setIsNear(true);
+        observer.disconnect();
+      },
+      { rootMargin: '150% 0px' },
+    );
+    observer.observe(wall);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const wall = wallRef.current;
@@ -683,7 +730,7 @@ function useGalleryWall() {
     wall.scrollBy({ left: direction * wall.clientWidth * 0.7, behavior });
   }, []);
 
-  return { wallRef, edges, step };
+  return { wallRef, edges, step, isNear };
 }
 
 export function App() {
@@ -693,7 +740,12 @@ export function App() {
   const photoReveal = useAboutPhotoReveal(isAboutSettled);
   const photoDeckRef = usePhotoDeckTilt();
   const resumeCardRef = useResumeTilt();
-  const { wallRef, edges: wallEdges, step: stepWall } = useGalleryWall();
+  const {
+    wallRef,
+    edges: wallEdges,
+    step: stepWall,
+    isNear: isWallNear,
+  } = useGalleryWall();
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [isLightboxClosing, setIsLightboxClosing] = useState(false);
   const [photoOrigin, setPhotoOrigin] = useState(null);
@@ -838,14 +890,15 @@ export function App() {
         }}
       >
         <div className="story-stage">
-          <img
+          <StoryImage
+            name="img-3327"
             className="story-image story-image-hero"
-            src="/images/img-3327.jpg"
             alt="A film photograph of globes behind a wood-and-glass display case"
+            fetchPriority="high"
           />
-          <img
+          <StoryImage
+            name="about-portrait"
             className="story-image story-image-about"
-            src="/images/about-portrait.jpg"
             alt="Edgar Agunias at a graduation ceremony"
           />
 
@@ -878,7 +931,14 @@ export function App() {
                   onClick={(event) => openPhoto(photo, event)}
                   aria-label={`Enlarge ${photo.title}`}
                 >
-                  <img src={photo.src} alt={photo.alt} decoding="async" />
+                  <img
+                    src={photo.src}
+                    alt={photo.alt}
+                    width={photo.width}
+                    height={photo.height}
+                    decoding="async"
+                    fetchPriority="low"
+                  />
                 </button>
               </figure>
             ))}
@@ -967,6 +1027,9 @@ export function App() {
                 <img
                   src="/images/edgar-resume-2027.svg"
                   alt="Edgar Agunias resume"
+                  width={612}
+                  height={792}
+                  loading="lazy"
                   decoding="async"
                 />
               </a>
@@ -1047,7 +1110,7 @@ export function App() {
                     aria-label={`View full screen: ${photo.alt}`}
                   >
                     <img
-                      src={photo.thumb}
+                      src={isWallNear ? photo.thumb : undefined}
                       alt={photo.alt}
                       width={photo.width}
                       height={photo.height}

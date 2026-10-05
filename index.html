@@ -9,6 +9,25 @@
       content="The personal site of Edgar Agunias."
     />
     <title>Edgar Agunias</title>
+    <!-- Start the hero photograph before the script runs. These two rules
+         mirror StoryImage in src/App.jsx. -->
+    <link
+      rel="preload"
+      as="image"
+      type="image/webp"
+      href="/images/img-3327-1920.webp"
+      media="(max-width: 600px)"
+      fetchpriority="high"
+    />
+    <link
+      rel="preload"
+      as="image"
+      type="image/webp"
+      imagesrcset="/images/img-3327-1600.webp 1600w, /images/img-3327-2400.webp 2400w"
+      imagesizes="(max-aspect-ratio: 3/2) 151vh, 100vw"
+      media="(min-width: 601px)"
+      fetchpriority="high"
+    />
     <link
       rel="icon"
       type="image/svg+xml"
