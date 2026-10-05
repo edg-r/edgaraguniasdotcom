@@ -13,7 +13,7 @@ The opening experience is intentionally minimal: a full-bleed photograph, a smal
 - The existing `About Me` navigation link stays solid while sliding beside the clickable `Edgar Agunias` in the upper-right black space; it grows to the same size and its comma fades in, while the other navigation items fade away.
 - Responsive layout with reduced-motion support and keyboard-visible focus states.
 
-The Career section shows the resume as a pointer-responsive card that opens the PDF, with a download link and a link to LinkedIn.
+The Career section shows the resume as a pointer-responsive card that opens the PDF, with a download link and a link to LinkedIn. The Photography section is a gallery wall of framed film photographs that pans sideways; clicking a print opens it full screen.
 
 ## Tech stack
 

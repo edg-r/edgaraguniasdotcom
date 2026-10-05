@@ -32,24 +32,104 @@ const aboutPhotos = [
   },
 ];
 
-const photographyFrames = [
+// Hung in this order down three rows, column by column. A portrait takes two
+// rows, so each column is three landscapes or one portrait and one landscape.
+// The last print hangs alone in the middle row to close the wall.
+const galleryWall = [
   {
-    src: '/images/img-3327.jpg',
-    alt: 'A film photograph of globes behind a wood-and-glass display case',
+    id: 'img-0527',
+    size: 'landscape',
+    alt: 'A lone rider on horseback crossing a field of yellow wildflowers in front of dark trees',
   },
   {
-    src: '/images/about-family.jpg',
-    alt: 'A child and woman pictured at Bolling Air Force Base',
+    id: 'img-0245',
+    size: 'portrait',
+    alt: 'A blurred black-and-white photograph of a couple kissing in a crowd at night',
   },
   {
-    src: '/images/about-father-and-children.jpg',
-    alt: 'A father with two children at an outdoor gathering',
+    id: 'img-3320',
+    size: 'landscape',
+    alt: 'The sun setting behind silhouetted buildings under a web of tram wires',
   },
   {
-    src: '/images/about-portrait.jpg',
-    alt: 'Edgar Agunias at a graduation ceremony',
+    id: 'img-9576',
+    size: 'landscape',
+    alt: 'White confetti falling over a crowd, seen from above',
+  },
+  {
+    id: 'img-4896',
+    size: 'landscape',
+    alt: 'Sunlight and shadow across a corrugated awning beneath a row of windows',
+  },
+  {
+    id: 'img-5182',
+    size: 'portrait',
+    alt: 'A windmill beside a canal under a clear pale sky',
+  },
+  {
+    id: 'img-0663',
+    size: 'landscape',
+    alt: 'A black-and-white photograph of a mounted police officer on a white horse above a crowd',
+  },
+  {
+    id: 'img-4465',
+    size: 'landscape',
+    alt: 'A black-and-white photograph of police officers seen from behind in a station hall hung with globe lights',
+  },
+  {
+    id: 'img-6555',
+    size: 'landscape',
+    alt: 'A person holding pink cotton candy in front of their face',
+  },
+  {
+    id: 'img-5760',
+    size: 'landscape',
+    alt: 'A black-and-white photograph of a crenellated stone castle wall',
+  },
+  {
+    id: 'img-6028',
+    size: 'landscape',
+    alt: 'A traveler walking past a yellow airport sign for the baggage hall and arrivals, with a light leak on the left of the frame',
+  },
+  {
+    id: 'img-6036',
+    size: 'portrait',
+    alt: 'A person walking through an airport hall carrying a jacket and a bag',
+  },
+  {
+    id: 'img-6038',
+    size: 'landscape',
+    alt: 'A man on a moving walkway holding a folded newspaper behind his back',
+  },
+  {
+    id: 'img-4901',
+    size: 'landscape',
+    alt: 'A red-and-white traffic mirror on a brick wall reflecting a sunlit street',
+  },
+  {
+    id: 'img-8009',
+    size: 'landscape',
+    alt: 'A black-and-white photograph of an ornate carved stone pavilion roof seen from below',
+  },
+  {
+    id: 'img-5790',
+    size: 'landscape',
+    alt: 'A suspension bridge across a river at dusk, with two people sitting on the dark shore',
+    row: 2,
   },
 ];
+
+function getGalleryPhoto(frame) {
+  const isPortrait = frame.size === 'portrait';
+  return {
+    ...frame,
+    src: `/images/gallery/${frame.id}.webp`,
+    thumb: `/images/gallery/${frame.id}-thumb.webp`,
+    width: isPortrait ? 2 : 3,
+    height: isPortrait ? 3 : 2,
+    isGallery: true,
+  };
+}
 
 function getCardOrientation(element) {
   const transform = getComputedStyle(element).transform;
@@ -90,35 +170,97 @@ function getPhotoFlightTransform(sourceRect, targetRect, origin, depth) {
   }px, ${depth}px) ${origin.orientation} scale3d(${scaleX}, ${scaleY}, 1)`;
 }
 
-function useAboutProgress() {
-  const [progress, setProgress] = useState(0);
+// Pointer-driven effects only need to run while their element is on screen.
+function observeOnScreen(element, onChange) {
+  if (!('IntersectionObserver' in window)) {
+    onChange(true);
+    return () => {};
+  }
 
-  useEffect(() => {
+  const observer = new IntersectionObserver(([entry]) => onChange(entry.isIntersecting));
+  observer.observe(element);
+  return () => observer.disconnect();
+}
+
+// The scroll position is written straight to the story element's custom
+// properties once per frame. React state only changes when the story crosses
+// a threshold, so scrolling never re-renders the page.
+function useAboutProgress(storyRef, motion) {
+  const [isCopyInteractive, setIsCopyInteractive] = useState(false);
+  const [isAboutSettled, setIsAboutSettled] = useState(false);
+  const motionRef = useRef(motion);
+  const updateRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const story = storyRef.current;
+    if (!story) return undefined;
+
     let frame = 0;
+
+    const setProperty = (name, value) => {
+      if (value === undefined) {
+        story.style.removeProperty(name);
+      } else {
+        story.style.setProperty(name, value);
+      }
+    };
 
     const update = () => {
       frame = 0;
+      const { nameFontSize, nameScaleEnd, aboutFontSize, aboutLabelWidth, scaleEnd } =
+        motionRef.current;
       const distance = Math.max(window.innerHeight, 1);
-      const nextProgress = Math.min(1, Math.max(0, window.scrollY / distance));
-      setProgress(nextProgress);
+      const progress = Math.min(1, Math.max(0, window.scrollY / distance));
+      const copyProgress = Math.min(1, Math.max(0, (progress - 0.38) / 0.62));
+
+      setProperty('--about-progress', String(progress));
+      setProperty('--about-copy-progress', String(copyProgress));
+      setProperty(
+        '--name-font-size',
+        nameFontSize ? `${nameFontSize * (1 - progress * (1 - nameScaleEnd))}px` : undefined,
+      );
+      setProperty(
+        '--about-link-font-size',
+        aboutFontSize ? `${aboutFontSize * (1 + progress * (scaleEnd - 1))}px` : undefined,
+      );
+      setProperty(
+        '--about-link-label-width',
+        aboutLabelWidth ? `${aboutLabelWidth * (1 + progress * (scaleEnd - 1))}px` : undefined,
+      );
+
+      setIsCopyInteractive(copyProgress > 0.5);
+      setIsAboutSettled(progress >= 0.98);
     };
 
     const handleScroll = () => {
       if (!frame) frame = window.requestAnimationFrame(update);
     };
 
+    updateRef.current = update;
     update();
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', update);
 
+    // Decode both full-bleed photographs up front so the About image is ready
+    // before the first scroll pushes it into view.
+    story.querySelectorAll('.story-image').forEach((image) => {
+      image.decode?.().catch(() => {});
+    });
+
     return () => {
+      updateRef.current = null;
       if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', update);
     };
-  }, []);
+  }, [storyRef]);
 
-  return progress;
+  useLayoutEffect(() => {
+    motionRef.current = motion;
+    updateRef.current?.();
+  }, [motion]);
+
+  return { isCopyInteractive, isAboutSettled };
 }
 
 function useAboutLinkMotion() {
@@ -255,18 +397,18 @@ function useAboutLinkMotion() {
   return motion;
 }
 
-function useAboutPhotoReveal(aboutProgress) {
+function useAboutPhotoReveal(isAboutSettled) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (aboutProgress < 0.98) {
+    if (!isAboutSettled) {
       setIsVisible(false);
       return undefined;
     }
 
     const timeout = window.setTimeout(() => setIsVisible(true), 1000);
     return () => window.clearTimeout(timeout);
-  }, [aboutProgress]);
+  }, [isAboutSettled]);
 
   return isVisible;
 }
@@ -287,6 +429,10 @@ function usePhotoDeckTilt() {
     let frame = 0;
     let tiltX = 0;
     let tiltY = 0;
+    let isOnScreen = false;
+    const stopObserving = observeOnScreen(deck, (visible) => {
+      isOnScreen = visible;
+    });
 
     const applyTilt = () => {
       frame = 0;
@@ -299,6 +445,7 @@ function usePhotoDeckTilt() {
     };
 
     const handlePointerMove = (event) => {
+      if (!isOnScreen) return;
       const rect = deck.getBoundingClientRect();
       const x = (event.clientX - (rect.left + rect.width / 2)) / (rect.width / 2 || 1);
       const y = (event.clientY - (rect.top + rect.height / 2)) / (rect.height / 2 || 1);
@@ -319,6 +466,7 @@ function usePhotoDeckTilt() {
     window.addEventListener('pointerleave', resetTilt);
 
     return () => {
+      stopObserving();
       if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerleave', resetTilt);
@@ -342,15 +490,26 @@ function useResumeTilt() {
     if (!hasFinePointer || prefersReducedMotion) return undefined;
 
     let frame = 0;
+    let lastFrameTime = 0;
     let currentRotateX = 0;
     let currentRotateY = 0;
     let targetRotateX = 0;
     let targetRotateY = 0;
+    let isOnScreen = false;
+    const stopObserving = observeOnScreen(resume, (visible) => {
+      isOnScreen = visible;
+    });
 
-    const applyTilt = () => {
+    // Ease toward the pointer by elapsed time rather than by frame count, so
+    // the card settles at the same pace on 60Hz and 120Hz displays. The time
+    // constant matches the original 14%-per-frame easing at 60Hz.
+    const applyTilt = (now) => {
       frame = 0;
-      currentRotateX += (targetRotateX - currentRotateX) * 0.14;
-      currentRotateY += (targetRotateY - currentRotateY) * 0.14;
+      const elapsed = lastFrameTime ? Math.min(now - lastFrameTime, 64) : 1000 / 60;
+      const ease = 1 - Math.exp(-elapsed / 110.5);
+      lastFrameTime = now;
+      currentRotateX += (targetRotateX - currentRotateX) * ease;
+      currentRotateY += (targetRotateY - currentRotateY) * ease;
       resume.style.setProperty('--resume-rotate-x', `${currentRotateX}deg`);
       resume.style.setProperty('--resume-rotate-y', `${currentRotateY}deg`);
 
@@ -359,6 +518,8 @@ function useResumeTilt() {
         Math.abs(targetRotateY - currentRotateY) > 0.01
       ) {
         frame = window.requestAnimationFrame(applyTilt);
+      } else {
+        lastFrameTime = 0;
       }
     };
 
@@ -367,6 +528,7 @@ function useResumeTilt() {
     };
 
     const handlePointerMove = (event) => {
+      if (!isOnScreen) return;
       const rect = resume.getBoundingClientRect();
       const x = (event.clientX - (rect.left + rect.width / 2)) / (rect.width / 2 || 1);
       const y = (event.clientY - (rect.top + rect.height / 2)) / (rect.height / 2 || 1);
@@ -389,6 +551,7 @@ function useResumeTilt() {
     window.addEventListener('blur', resetTilt);
 
     return () => {
+      stopObserving();
       if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerleave', resetTilt);
@@ -399,31 +562,145 @@ function useResumeTilt() {
   return resumeRef;
 }
 
+function useGalleryWall() {
+  const wallRef = useRef(null);
+  const [edges, setEdges] = useState({ atStart: true, atEnd: false });
+
+  useEffect(() => {
+    const wall = wallRef.current;
+    if (!wall) return undefined;
+
+    const updateEdges = () => {
+      const maxScroll = wall.scrollWidth - wall.clientWidth;
+      const atStart = wall.scrollLeft <= 2;
+      const atEnd = wall.scrollLeft >= maxScroll - 2;
+      setEdges((current) =>
+        current.atStart === atStart && current.atEnd === atEnd ? current : { atStart, atEnd },
+      );
+    };
+
+    // Mouse users drag the wall sideways; touch and trackpads use the native
+    // horizontal scroll. A drag must not also open the frame under the pointer.
+    let drag = null;
+    let suppressClick = false;
+
+    const handlePointerDown = (event) => {
+      if (event.pointerType !== 'mouse' || event.button !== 0) return;
+      drag = { x: event.clientX, scrollLeft: wall.scrollLeft, moved: false };
+    };
+
+    let panFrame = 0;
+    let panTarget = 0;
+
+    const applyPan = () => {
+      panFrame = 0;
+      wall.scrollLeft = panTarget;
+    };
+
+    const handlePointerMove = (event) => {
+      if (!drag) return;
+      const dx = event.clientX - drag.x;
+      if (!drag.moved && Math.abs(dx) < 6) return;
+      if (!drag.moved) wall.classList.add('is-dragging');
+      drag.moved = true;
+      panTarget = drag.scrollLeft - dx;
+      if (!panFrame) panFrame = window.requestAnimationFrame(applyPan);
+    };
+
+    const handlePointerUp = () => {
+      if (!drag) return;
+      suppressClick = drag.moved;
+      drag = null;
+      wall.classList.remove('is-dragging');
+      if (suppressClick) window.setTimeout(() => { suppressClick = false; }, 0);
+    };
+
+    const handleClickCapture = (event) => {
+      if (!suppressClick) return;
+      suppressClick = false;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    const hasFinePointer = window.matchMedia?.('(pointer: fine)').matches ?? true;
+    const prefersReducedMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    const canTilt = hasFinePointer && !prefersReducedMotion;
+    let frame = 0;
+    let tiltX = 0;
+    let tiltY = 0;
+    let isOnScreen = false;
+    const stopObserving = observeOnScreen(wall, (visible) => {
+      isOnScreen = visible;
+    });
+
+    const applyTilt = () => {
+      frame = 0;
+      wall.style.setProperty('--wall-tilt-x', `${tiltX}deg`);
+      wall.style.setProperty('--wall-tilt-y', `${tiltY}deg`);
+    };
+
+    const handleTiltMove = (event) => {
+      handlePointerMove(event);
+      if (!canTilt || !isOnScreen) return;
+      const x = event.clientX / Math.max(window.innerWidth, 1) - 0.5;
+      const y = event.clientY / Math.max(window.innerHeight, 1) - 0.5;
+      tiltX = y * -2.4;
+      tiltY = x * 4;
+      if (!frame) frame = window.requestAnimationFrame(applyTilt);
+    };
+
+    updateEdges();
+    wall.addEventListener('scroll', updateEdges, { passive: true });
+    wall.addEventListener('pointerdown', handlePointerDown);
+    wall.addEventListener('click', handleClickCapture, true);
+    window.addEventListener('pointermove', handleTiltMove, { passive: true });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+    window.addEventListener('resize', updateEdges);
+
+    return () => {
+      stopObserving();
+      if (panFrame) window.cancelAnimationFrame(panFrame);
+      if (frame) window.cancelAnimationFrame(frame);
+      wall.removeEventListener('scroll', updateEdges);
+      wall.removeEventListener('pointerdown', handlePointerDown);
+      wall.removeEventListener('click', handleClickCapture, true);
+      window.removeEventListener('pointermove', handleTiltMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      window.removeEventListener('resize', updateEdges);
+    };
+  }, []);
+
+  const step = useCallback((direction) => {
+    const wall = wallRef.current;
+    if (!wall) return;
+    const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth';
+    wall.scrollBy({ left: direction * wall.clientWidth * 0.7, behavior });
+  }, []);
+
+  return { wallRef, edges, step };
+}
+
 export function App() {
-  const aboutProgress = useAboutProgress();
+  const storyRef = useRef(null);
   const aboutLinkMotion = useAboutLinkMotion();
-  const photoReveal = useAboutPhotoReveal(aboutProgress);
+  const { isCopyInteractive, isAboutSettled } = useAboutProgress(storyRef, aboutLinkMotion);
+  const photoReveal = useAboutPhotoReveal(isAboutSettled);
   const photoDeckRef = usePhotoDeckTilt();
   const resumeCardRef = useResumeTilt();
+  const { wallRef, edges: wallEdges, step: stepWall } = useGalleryWall();
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [isLightboxClosing, setIsLightboxClosing] = useState(false);
   const [photoOrigin, setPhotoOrigin] = useState(null);
+  const [fullSizeReadySrc, setFullSizeReadySrc] = useState(null);
   const lightboxPanelRef = useRef(null);
   const lightboxVisualRef = useRef(null);
   const lightboxAnimationRef = useRef(null);
-  const aboutCopyProgress = Math.min(1, Math.max(0, (aboutProgress - 0.38) / 0.62));
-  const nameFontSize = aboutLinkMotion.nameFontSize
-    ? aboutLinkMotion.nameFontSize *
-      (1 - aboutProgress * (1 - aboutLinkMotion.nameScaleEnd))
-    : undefined;
-  const aboutFontSize = aboutLinkMotion.aboutFontSize
-    ? aboutLinkMotion.aboutFontSize *
-      (1 + aboutProgress * (aboutLinkMotion.scaleEnd - 1))
-    : undefined;
-  const aboutLabelWidth = aboutLinkMotion.aboutLabelWidth
-    ? aboutLinkMotion.aboutLabelWidth *
-      (1 + aboutProgress * (aboutLinkMotion.scaleEnd - 1))
-    : undefined;
 
   const closePhoto = useCallback(() => {
     if (!selectedPhoto || isLightboxClosing) return;
@@ -511,7 +788,7 @@ export function App() {
   }, [isLightboxClosing, photoOrigin, selectedPhoto]);
 
   const openPhoto = (photo, event) => {
-    const card = event.currentTarget.closest('.about-photo-card');
+    const card = event.currentTarget.closest('.about-photo-card, .gallery-frame');
     const sourceRect = card?.getBoundingClientRect();
 
     setPhotoOrigin(
@@ -529,29 +806,35 @@ export function App() {
     );
     setIsLightboxClosing(false);
     setSelectedPhoto(photo);
+
+    // A print leaves the wall showing the copy that is already on screen, so
+    // the flight never waits on the network; the full-size file replaces it
+    // in the same box once it has decoded.
+    if (photo.isGallery) {
+      const fullSize = new Image();
+      const markReady = () => setFullSizeReadySrc(photo.src);
+      fullSize.src = photo.src;
+      fullSize.decode().then(markReady, markReady);
+    }
   };
 
   return (
     <main className="site-shell" id="top">
       <div
         className="about-story"
+        ref={storyRef}
         style={{
-          '--about-progress': aboutProgress,
           '--about-link-dx': `${aboutLinkMotion.dx}px`,
           '--about-link-dy': `${aboutLinkMotion.dy}px`,
-          '--name-font-size': nameFontSize ? `${nameFontSize}px` : undefined,
           '--name-layout-height': aboutLinkMotion.headingHeight
             ? `${aboutLinkMotion.headingHeight}px`
             : undefined,
-          '--about-link-font-size': aboutFontSize ? `${aboutFontSize}px` : undefined,
           '--about-link-width': aboutLinkMotion.aboutLinkWidth
             ? `${aboutLinkMotion.aboutLinkWidth}px`
             : undefined,
           '--about-link-height': aboutLinkMotion.aboutLinkHeight
             ? `${aboutLinkMotion.aboutLinkHeight}px`
             : undefined,
-          '--about-link-label-width': aboutLabelWidth ? `${aboutLabelWidth}px` : undefined,
-          '--about-copy-progress': aboutCopyProgress,
         }}
       >
         <div className="story-stage">
@@ -567,10 +850,10 @@ export function App() {
           />
 
           <div
-            className={`about-copy${aboutCopyProgress > 0.5 ? ' is-interactive' : ''}`}
+            className={`about-copy${isCopyInteractive ? ' is-interactive' : ''}`}
             aria-label="About Me"
             role="region"
-            tabIndex={aboutCopyProgress > 0.5 ? 0 : -1}
+            tabIndex={isCopyInteractive ? 0 : -1}
           >
             {aboutCopy.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
@@ -629,10 +912,12 @@ export function App() {
 
         {selectedPhoto ? (
           <div
-            className={`photo-lightbox${isLightboxClosing ? ' is-closing' : ''}`}
+            className={`photo-lightbox${selectedPhoto.isGallery ? ' is-gallery' : ''}${
+              isLightboxClosing ? ' is-closing' : ''
+            }`}
             role="dialog"
             aria-modal="true"
-            aria-label={selectedPhoto.title}
+            aria-label={selectedPhoto.title || selectedPhoto.alt}
             onClick={closePhoto}
           >
             <div className="photo-lightbox-backdrop" aria-hidden="true" />
@@ -640,14 +925,25 @@ export function App() {
               <div className="photo-lightbox-visual" ref={lightboxVisualRef}>
                 <img
                   className="photo-lightbox-image"
-                  src={selectedPhoto.src}
+                  src={
+                    selectedPhoto.isGallery && fullSizeReadySrc !== selectedPhoto.src
+                      ? selectedPhoto.thumb
+                      : selectedPhoto.src
+                  }
                   alt={selectedPhoto.alt}
+                  style={
+                    selectedPhoto.isGallery
+                      ? { '--photo-ratio': selectedPhoto.width / selectedPhoto.height }
+                      : undefined
+                  }
                 />
               </div>
-              <div className="photo-lightbox-caption">
-                <span>{selectedPhoto.location}</span>
-                <span>{selectedPhoto.description}</span>
-              </div>
+              {selectedPhoto.location || selectedPhoto.description ? (
+                <div className="photo-lightbox-caption">
+                  <span>{selectedPhoto.location}</span>
+                  <span>{selectedPhoto.description}</span>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -676,14 +972,14 @@ export function App() {
               </a>
               <div className="career-resume-links">
                 <a
-                  className="career-resume-link"
+                  className="pill-link"
                   href="/documents/edgar-agunias-resume-2027.pdf"
                   download
                 >
                   Click to download
                 </a>
                 <a
-                  className="career-resume-link"
+                  className="pill-link"
                   href="https://www.linkedin.com/in/edgar-agunias"
                   target="_blank"
                   rel="noreferrer"
@@ -697,67 +993,73 @@ export function App() {
       </section>
 
       <section className="photography-panel" id="photography">
-        <div className="photography-inner">
-          <div className="photography-intro">
-            <p className="photography-kicker">PHOTOGRAPHY / 01</p>
-            <h2>Photography</h2>
-            <p className="photography-description">
-              A first room for the photographs. The wider archive lives on Instagram.
-            </p>
+        <div className="photography-intro">
+          <h2>Photography</h2>
+          <div className="photography-controls">
+            <button
+              className="wall-step"
+              type="button"
+              onClick={() => stepWall(-1)}
+              disabled={wallEdges.atStart}
+              aria-label="Move left along the wall"
+            >
+              ←
+            </button>
+            <button
+              className="wall-step"
+              type="button"
+              onClick={() => stepWall(1)}
+              disabled={wallEdges.atEnd}
+              aria-label="Move right along the wall"
+            >
+              →
+            </button>
             <a
-              className="instagram-profile-link"
+              className="pill-link"
               href="https://www.instagram.com/edgaragunias/"
               target="_blank"
               rel="noreferrer"
               aria-label="Open @edgaragunias on Instagram"
             >
-              <span>@edgaragunias</span>
-              <span>Open Instagram ↗</span>
+              @edgaragunias ↗
             </a>
           </div>
+        </div>
 
-          <a
-            className="instagram-window"
-            href="https://www.instagram.com/edgaragunias/"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Open the @edgaragunias Instagram profile"
-          >
-            <div className="instagram-window-chrome">
-              <span className="instagram-window-dots" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-              </span>
-              <span className="instagram-window-label">INSTAGRAM / PROFILE</span>
-              <span className="instagram-window-address">instagram.com/edgaragunias</span>
-              <span className="instagram-window-open">OPEN ↗</span>
-            </div>
-
-            <div className="instagram-window-content">
-              <div className="instagram-profile-heading">
-                <div className="instagram-avatar">
-                  <img src="/images/about-portrait.jpg" alt="" aria-hidden="true" />
-                </div>
-                <div>
-                  <span className="instagram-profile-label">PHOTOGRAPHY</span>
-                  <strong>@edgaragunias</strong>
-                </div>
-                <span className="instagram-profile-arrow" aria-hidden="true">↗</span>
-              </div>
-
-              <div className="instagram-frame-grid">
-                {photographyFrames.map((frame) => (
-                  <img src={frame.src} alt={frame.alt} key={frame.src} loading="lazy" />
-                ))}
-              </div>
-
-              <div className="instagram-window-footer">
-                <span>Selected frames from the site</span>
-                <span>View the live profile ↗</span>
-              </div>
-            </div>
-          </a>
+        <div className="gallery-wall-stage">
+          <div className="gallery-wall" ref={wallRef} tabIndex={0} aria-label="Gallery wall">
+            <ul className="gallery-wall-track">
+              {galleryWall.map(getGalleryPhoto).map((photo) => (
+                <li
+                  className={`gallery-hook is-${photo.size}`}
+                  key={photo.id}
+                  style={photo.row ? { gridRow: photo.row } : undefined}
+                >
+                  <button
+                    className={`gallery-frame${
+                      selectedPhoto?.src === photo.src ? ' is-modal-source' : ''
+                    }`}
+                    type="button"
+                    onClick={(event) => openPhoto(photo, event)}
+                    onPointerEnter={() => {
+                      new Image().src = photo.src;
+                    }}
+                    aria-label={`View full screen: ${photo.alt}`}
+                  >
+                    <img
+                      src={photo.thumb}
+                      alt={photo.alt}
+                      width={photo.width}
+                      height={photo.height}
+                      style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
+                      draggable={false}
+                      decoding="async"
+                    />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
     </main>
