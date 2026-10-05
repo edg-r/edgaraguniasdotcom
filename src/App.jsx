@@ -170,35 +170,97 @@ function getPhotoFlightTransform(sourceRect, targetRect, origin, depth) {
   }px, ${depth}px) ${origin.orientation} scale3d(${scaleX}, ${scaleY}, 1)`;
 }
 
-function useAboutProgress() {
-  const [progress, setProgress] = useState(0);
+// Pointer-driven effects only need to run while their element is on screen.
+function observeOnScreen(element, onChange) {
+  if (!('IntersectionObserver' in window)) {
+    onChange(true);
+    return () => {};
+  }
 
-  useEffect(() => {
+  const observer = new IntersectionObserver(([entry]) => onChange(entry.isIntersecting));
+  observer.observe(element);
+  return () => observer.disconnect();
+}
+
+// The scroll position is written straight to the story element's custom
+// properties once per frame. React state only changes when the story crosses
+// a threshold, so scrolling never re-renders the page.
+function useAboutProgress(storyRef, motion) {
+  const [isCopyInteractive, setIsCopyInteractive] = useState(false);
+  const [isAboutSettled, setIsAboutSettled] = useState(false);
+  const motionRef = useRef(motion);
+  const updateRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const story = storyRef.current;
+    if (!story) return undefined;
+
     let frame = 0;
+
+    const setProperty = (name, value) => {
+      if (value === undefined) {
+        story.style.removeProperty(name);
+      } else {
+        story.style.setProperty(name, value);
+      }
+    };
 
     const update = () => {
       frame = 0;
+      const { nameFontSize, nameScaleEnd, aboutFontSize, aboutLabelWidth, scaleEnd } =
+        motionRef.current;
       const distance = Math.max(window.innerHeight, 1);
-      const nextProgress = Math.min(1, Math.max(0, window.scrollY / distance));
-      setProgress(nextProgress);
+      const progress = Math.min(1, Math.max(0, window.scrollY / distance));
+      const copyProgress = Math.min(1, Math.max(0, (progress - 0.38) / 0.62));
+
+      setProperty('--about-progress', String(progress));
+      setProperty('--about-copy-progress', String(copyProgress));
+      setProperty(
+        '--name-font-size',
+        nameFontSize ? `${nameFontSize * (1 - progress * (1 - nameScaleEnd))}px` : undefined,
+      );
+      setProperty(
+        '--about-link-font-size',
+        aboutFontSize ? `${aboutFontSize * (1 + progress * (scaleEnd - 1))}px` : undefined,
+      );
+      setProperty(
+        '--about-link-label-width',
+        aboutLabelWidth ? `${aboutLabelWidth * (1 + progress * (scaleEnd - 1))}px` : undefined,
+      );
+
+      setIsCopyInteractive(copyProgress > 0.5);
+      setIsAboutSettled(progress >= 0.98);
     };
 
     const handleScroll = () => {
       if (!frame) frame = window.requestAnimationFrame(update);
     };
 
+    updateRef.current = update;
     update();
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', update);
 
+    // Decode both full-bleed photographs up front so the About image is ready
+    // before the first scroll pushes it into view.
+    story.querySelectorAll('.story-image').forEach((image) => {
+      image.decode?.().catch(() => {});
+    });
+
     return () => {
+      updateRef.current = null;
       if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', update);
     };
-  }, []);
+  }, [storyRef]);
 
-  return progress;
+  useLayoutEffect(() => {
+    motionRef.current = motion;
+    updateRef.current?.();
+  }, [motion]);
+
+  return { isCopyInteractive, isAboutSettled };
 }
 
 function useAboutLinkMotion() {
@@ -335,18 +397,18 @@ function useAboutLinkMotion() {
   return motion;
 }
 
-function useAboutPhotoReveal(aboutProgress) {
+function useAboutPhotoReveal(isAboutSettled) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (aboutProgress < 0.98) {
+    if (!isAboutSettled) {
       setIsVisible(false);
       return undefined;
     }
 
     const timeout = window.setTimeout(() => setIsVisible(true), 1000);
     return () => window.clearTimeout(timeout);
-  }, [aboutProgress]);
+  }, [isAboutSettled]);
 
   return isVisible;
 }
@@ -367,6 +429,10 @@ function usePhotoDeckTilt() {
     let frame = 0;
     let tiltX = 0;
     let tiltY = 0;
+    let isOnScreen = false;
+    const stopObserving = observeOnScreen(deck, (visible) => {
+      isOnScreen = visible;
+    });
 
     const applyTilt = () => {
       frame = 0;
@@ -379,6 +445,7 @@ function usePhotoDeckTilt() {
     };
 
     const handlePointerMove = (event) => {
+      if (!isOnScreen) return;
       const rect = deck.getBoundingClientRect();
       const x = (event.clientX - (rect.left + rect.width / 2)) / (rect.width / 2 || 1);
       const y = (event.clientY - (rect.top + rect.height / 2)) / (rect.height / 2 || 1);
@@ -399,6 +466,7 @@ function usePhotoDeckTilt() {
     window.addEventListener('pointerleave', resetTilt);
 
     return () => {
+      stopObserving();
       if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerleave', resetTilt);
@@ -422,15 +490,26 @@ function useResumeTilt() {
     if (!hasFinePointer || prefersReducedMotion) return undefined;
 
     let frame = 0;
+    let lastFrameTime = 0;
     let currentRotateX = 0;
     let currentRotateY = 0;
     let targetRotateX = 0;
     let targetRotateY = 0;
+    let isOnScreen = false;
+    const stopObserving = observeOnScreen(resume, (visible) => {
+      isOnScreen = visible;
+    });
 
-    const applyTilt = () => {
+    // Ease toward the pointer by elapsed time rather than by frame count, so
+    // the card settles at the same pace on 60Hz and 120Hz displays. The time
+    // constant matches the original 14%-per-frame easing at 60Hz.
+    const applyTilt = (now) => {
       frame = 0;
-      currentRotateX += (targetRotateX - currentRotateX) * 0.14;
-      currentRotateY += (targetRotateY - currentRotateY) * 0.14;
+      const elapsed = lastFrameTime ? Math.min(now - lastFrameTime, 64) : 1000 / 60;
+      const ease = 1 - Math.exp(-elapsed / 110.5);
+      lastFrameTime = now;
+      currentRotateX += (targetRotateX - currentRotateX) * ease;
+      currentRotateY += (targetRotateY - currentRotateY) * ease;
       resume.style.setProperty('--resume-rotate-x', `${currentRotateX}deg`);
       resume.style.setProperty('--resume-rotate-y', `${currentRotateY}deg`);
 
@@ -439,6 +518,8 @@ function useResumeTilt() {
         Math.abs(targetRotateY - currentRotateY) > 0.01
       ) {
         frame = window.requestAnimationFrame(applyTilt);
+      } else {
+        lastFrameTime = 0;
       }
     };
 
@@ -447,6 +528,7 @@ function useResumeTilt() {
     };
 
     const handlePointerMove = (event) => {
+      if (!isOnScreen) return;
       const rect = resume.getBoundingClientRect();
       const x = (event.clientX - (rect.left + rect.width / 2)) / (rect.width / 2 || 1);
       const y = (event.clientY - (rect.top + rect.height / 2)) / (rect.height / 2 || 1);
@@ -469,6 +551,7 @@ function useResumeTilt() {
     window.addEventListener('blur', resetTilt);
 
     return () => {
+      stopObserving();
       if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerleave', resetTilt);
@@ -506,13 +589,22 @@ function useGalleryWall() {
       drag = { x: event.clientX, scrollLeft: wall.scrollLeft, moved: false };
     };
 
+    let panFrame = 0;
+    let panTarget = 0;
+
+    const applyPan = () => {
+      panFrame = 0;
+      wall.scrollLeft = panTarget;
+    };
+
     const handlePointerMove = (event) => {
       if (!drag) return;
       const dx = event.clientX - drag.x;
       if (!drag.moved && Math.abs(dx) < 6) return;
+      if (!drag.moved) wall.classList.add('is-dragging');
       drag.moved = true;
-      wall.classList.add('is-dragging');
-      wall.scrollLeft = drag.scrollLeft - dx;
+      panTarget = drag.scrollLeft - dx;
+      if (!panFrame) panFrame = window.requestAnimationFrame(applyPan);
     };
 
     const handlePointerUp = () => {
@@ -538,6 +630,10 @@ function useGalleryWall() {
     let frame = 0;
     let tiltX = 0;
     let tiltY = 0;
+    let isOnScreen = false;
+    const stopObserving = observeOnScreen(wall, (visible) => {
+      isOnScreen = visible;
+    });
 
     const applyTilt = () => {
       frame = 0;
@@ -547,7 +643,7 @@ function useGalleryWall() {
 
     const handleTiltMove = (event) => {
       handlePointerMove(event);
-      if (!canTilt) return;
+      if (!canTilt || !isOnScreen) return;
       const x = event.clientX / Math.max(window.innerWidth, 1) - 0.5;
       const y = event.clientY / Math.max(window.innerHeight, 1) - 0.5;
       tiltX = y * -2.4;
@@ -565,6 +661,8 @@ function useGalleryWall() {
     window.addEventListener('resize', updateEdges);
 
     return () => {
+      stopObserving();
+      if (panFrame) window.cancelAnimationFrame(panFrame);
       if (frame) window.cancelAnimationFrame(frame);
       wall.removeEventListener('scroll', updateEdges);
       wall.removeEventListener('pointerdown', handlePointerDown);
@@ -589,9 +687,10 @@ function useGalleryWall() {
 }
 
 export function App() {
-  const aboutProgress = useAboutProgress();
+  const storyRef = useRef(null);
   const aboutLinkMotion = useAboutLinkMotion();
-  const photoReveal = useAboutPhotoReveal(aboutProgress);
+  const { isCopyInteractive, isAboutSettled } = useAboutProgress(storyRef, aboutLinkMotion);
+  const photoReveal = useAboutPhotoReveal(isAboutSettled);
   const photoDeckRef = usePhotoDeckTilt();
   const resumeCardRef = useResumeTilt();
   const { wallRef, edges: wallEdges, step: stepWall } = useGalleryWall();
@@ -602,19 +701,6 @@ export function App() {
   const lightboxPanelRef = useRef(null);
   const lightboxVisualRef = useRef(null);
   const lightboxAnimationRef = useRef(null);
-  const aboutCopyProgress = Math.min(1, Math.max(0, (aboutProgress - 0.38) / 0.62));
-  const nameFontSize = aboutLinkMotion.nameFontSize
-    ? aboutLinkMotion.nameFontSize *
-      (1 - aboutProgress * (1 - aboutLinkMotion.nameScaleEnd))
-    : undefined;
-  const aboutFontSize = aboutLinkMotion.aboutFontSize
-    ? aboutLinkMotion.aboutFontSize *
-      (1 + aboutProgress * (aboutLinkMotion.scaleEnd - 1))
-    : undefined;
-  const aboutLabelWidth = aboutLinkMotion.aboutLabelWidth
-    ? aboutLinkMotion.aboutLabelWidth *
-      (1 + aboutProgress * (aboutLinkMotion.scaleEnd - 1))
-    : undefined;
 
   const closePhoto = useCallback(() => {
     if (!selectedPhoto || isLightboxClosing) return;
@@ -736,23 +822,19 @@ export function App() {
     <main className="site-shell" id="top">
       <div
         className="about-story"
+        ref={storyRef}
         style={{
-          '--about-progress': aboutProgress,
           '--about-link-dx': `${aboutLinkMotion.dx}px`,
           '--about-link-dy': `${aboutLinkMotion.dy}px`,
-          '--name-font-size': nameFontSize ? `${nameFontSize}px` : undefined,
           '--name-layout-height': aboutLinkMotion.headingHeight
             ? `${aboutLinkMotion.headingHeight}px`
             : undefined,
-          '--about-link-font-size': aboutFontSize ? `${aboutFontSize}px` : undefined,
           '--about-link-width': aboutLinkMotion.aboutLinkWidth
             ? `${aboutLinkMotion.aboutLinkWidth}px`
             : undefined,
           '--about-link-height': aboutLinkMotion.aboutLinkHeight
             ? `${aboutLinkMotion.aboutLinkHeight}px`
             : undefined,
-          '--about-link-label-width': aboutLabelWidth ? `${aboutLabelWidth}px` : undefined,
-          '--about-copy-progress': aboutCopyProgress,
         }}
       >
         <div className="story-stage">
@@ -768,10 +850,10 @@ export function App() {
           />
 
           <div
-            className={`about-copy${aboutCopyProgress > 0.5 ? ' is-interactive' : ''}`}
+            className={`about-copy${isCopyInteractive ? ' is-interactive' : ''}`}
             aria-label="About Me"
             role="region"
-            tabIndex={aboutCopyProgress > 0.5 ? 0 : -1}
+            tabIndex={isCopyInteractive ? 0 : -1}
           >
             {aboutCopy.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>

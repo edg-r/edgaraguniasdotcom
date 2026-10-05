@@ -47,6 +47,8 @@ a:focus-visible {
   --about-top: clamp(2rem, 5vw, 5rem);
   --hero-name-size: clamp(2.8rem, 6.2vw, 6.5rem);
   --name-scale-end: 0.48;
+  --about-progress: 0;
+  --about-copy-progress: 0;
 }
 
 .story-stage {
